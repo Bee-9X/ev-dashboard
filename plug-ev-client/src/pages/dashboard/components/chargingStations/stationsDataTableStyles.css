@@ -1,0 +1,29 @@
+
+.station-Data {
+    height: 850px;
+    width: 100%;
+    padding: 10px;
+    border: solid 1px rgba(185, 185, 185, 0.3);
+    border-radius: 25px;
+}
+
+.terminalType{
+    padding: 4px;
+    display: inline-block;
+    align-items: center;
+    justify-content: center;
+    height: 180px;
+    width: 100%;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    z-index: 1;
+}
+
+.stationInfo{
+    border-radius: 10px;
+    height: 480px;
+    width: 100%;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    z-index: 1;
+}

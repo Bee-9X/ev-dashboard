@@ -1,0 +1,35 @@
+Plug EV Client (Front end)
+
+use 'npm install --force' in the front end. Default npm install might not work 
+due to package conflicts. then 'npm start' to start the front end
+
+
+Server SOAP (Back end)
+
+use 'npm install' and then 'npm run dev' to start the server
+
+
+Install ngrok on the machine that is use to run the project.
+(https://dashboard.ngrok.com/get-started/setup/windows)
+
+This is to expose local server, to the internet, so that the charger can connect to that
+
+After installing, you have to register your auth token in the laptop/desktop. Above link
+Contains the command
+
+You can find the auth token in 'Your Authtoken' section on the left sidebar (It's on top)
+
+Then, when you are running ngrok commads, you will have to connect a bank card to the 
+ngrok, but no worries there. There will be no charge as I also have done that. 
+
+Once that is setup, you can follow the commands.txt in the server-soap project to setup
+the ngrok tunnel
+
+note that the 'charger settings' on that file is what I get when I ran the command.
+You might get a different URL. So you will have to update the charger settings accordingly.
+
+Once the ngrok tunnel is active, the charger is connected, and the back end is running,
+you can see the logs in the back end terminal, from the charger.
+
+Front end is also connected to the charger. 
+

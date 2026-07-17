@@ -1,0 +1,17 @@
+{
+  "name": "server-soap",
+  "version": "1.0.0",
+  "description": "OCPP 1.6S SOAP XML Backend",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.2.1",
+    "mongoose": "^9.7.0",
+    "uuid": "^13.0.0",
+    "xml2js": "^0.6.2"
+  }
+}

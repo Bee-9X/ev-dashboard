@@ -1,0 +1,10 @@
+use this for the ngrok
+
+ngrok http 3003 --scheme http
+
+
+charger settings
+
+OCPP URL: http://wen-conductorial-unmellifluously.ngrok-free.dev/ocpp/c1
+Port: 80
+TCP Server IP: 0.0.0.0
