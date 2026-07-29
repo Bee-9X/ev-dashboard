@@ -284,9 +284,9 @@ class Login extends React.Component {
 
                                 <div id="form-group">
 
-                                    <form action id="loginForm">
+                                    <div id="loginForm">
 
-                                        <form onSubmit={this.doLogin}>
+                                        <div className="login-form">
                                             {
                                                 this.props.errorMessage && (
                                                     <Alert className="alert-sm widget-middle-overflow rounded-0"
@@ -324,7 +324,7 @@ class Login extends React.Component {
                                                     </InputGroupAddon>
                                                     <Input id="password" className="input-transparent pl-3"
                                                            value={this.state.loginPassword}
-                                                           onChange={this.changePassword} type="password"
+                                                           onChange={this.loginPassword} type="password"
                                                            required name="password" placeholder="Password"/>
                                                 </InputGroup>
                                             </FormGroup>
@@ -336,7 +336,7 @@ class Login extends React.Component {
 
                                                 <div className="auth-btn-container">
 
-                                                    <Button className="auth-btn" type="submit">
+                                                    <Button className="auth-btn" onClick={this.doLogin}>
                                                         <span className="auth-btn-circle" style={{marginRight: 8}}><i
                                                             className="la la-caret-right"/>
                                                         </span>
@@ -371,12 +371,12 @@ class Login extends React.Component {
                                                 </div>
 
                                             </div>
-                                        </form>
+                                        </div>
 
 
-                                    </form>
-                                    <form action id="registerForm">
-                                        <form onSubmit={this.doRegister}>
+                                    </div>
+                                    <div id="registerForm">
+                                        <div className="register-form">
                                             {
                                                 this.props.errorMessage && (
                                                     <Alert className="alert-sm widget-middle-overflow rounded-0"
@@ -479,12 +479,12 @@ class Login extends React.Component {
                                                            required name="confirmPassword" placeholder="Confirm"/>
                                                 </InputGroup>
                                             </FormGroup>
-                                        </form>
+                                        </div>
 
                                         <div className="bg-widget auth-widget-footer">
                                             <div className="auth-btn-container">
 
-                                                <Button className="auth-btn" type="submit">
+                                                <Button className="auth-btn" onClick={this.doRegister}>
                                                         <span className="auth-btn-circle" style={{marginRight: 8}}><i
                                                             className="la la-caret-right"/>
                                                         </span>
@@ -517,7 +517,7 @@ class Login extends React.Component {
                                             </div>
 
                                         </div>
-                                    </form>
+                                    </div>
                                 </div>
                             </div>
 

@@ -57,10 +57,10 @@ export function loginUser(creds) {
 
         dispatch(receiveLogin());
 
-        if (creds.loginEmail.length > 0 && creds.loginPassword.length > 0) {
+        if (creds.loginEmail === '09madhuma@gmail.com' && creds.loginPassword === '123456') {
             localStorage.setItem('authenticated', true)
         } else {
-            dispatch(loginError('Something was wrong. Try again'));
+            dispatch(loginError('Invalid email or password.'));
         }
     }
 }
