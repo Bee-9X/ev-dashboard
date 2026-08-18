@@ -24,6 +24,11 @@ const chargerSchema = new mongoose.Schema({
             default: 80.7718
         }
     },
+    ocppVersion: {
+        type: String,
+        enum: ['1.5 SOAP', '1.6 JSON'],
+        default: '1.5 SOAP'
+    },
     registeredAt: {
         type: Date,
         default: Date.now

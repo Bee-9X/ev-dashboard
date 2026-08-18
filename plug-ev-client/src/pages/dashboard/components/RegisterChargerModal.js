@@ -6,6 +6,7 @@ const RegisterChargerModal = ({ isOpen, toggle, onRegisterSuccess }) => {
     const [identity, setIdentity] = useState('');
     const [name, setName] = useState('');
     const [district, setDistrict] = useState('Colombo');
+    const [ocppVersion, setOcppVersion] = useState('1.5 SOAP');
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
 
@@ -23,10 +24,11 @@ const RegisterChargerModal = ({ isOpen, toggle, onRegisterSuccess }) => {
         setLoading(true);
 
         try {
-            await registerCharger(identity, name, district);
+            await registerCharger(identity, name, district, ocppVersion);
             setIdentity('');
             setName('');
             setDistrict('Colombo');
+            setOcppVersion('1.5 SOAP');
             if (onRegisterSuccess) onRegisterSuccess();
             toggle();
         } catch (err) {
@@ -76,6 +78,19 @@ const RegisterChargerModal = ({ isOpen, toggle, onRegisterSuccess }) => {
                             onChange={(e) => setDistrict(e.target.value)}
                         >
                             {districts.map(d => <option key={d} value={d}>{d}</option>)}
+                        </Input>
+                    </FormGroup>
+                    <FormGroup>
+                        <Label for="ocppVersion">OCPP Protocol Version</Label>
+                        <Input 
+                            type="select" 
+                            name="ocppVersion" 
+                            id="ocppVersion" 
+                            value={ocppVersion} 
+                            onChange={(e) => setOcppVersion(e.target.value)}
+                        >
+                            <option value="1.5 SOAP">1.5 SOAP</option>
+                            <option value="1.6 JSON">1.6 JSON (WebSocket)</option>
                         </Input>
                     </FormGroup>
                 </ModalBody>

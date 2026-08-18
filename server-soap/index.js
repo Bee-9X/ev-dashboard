@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const xml2js = require('xml2js');
 const { v4: uuidv4 } = require('uuid');
+const { WebSocketServer } = require('ws');
 const net = require('net');
 const http = require('http');
 const mongoose = require('mongoose');
@@ -53,6 +54,7 @@ app.get('/api/chargers', async (req, res) => {
                 name: dbCharger.name,
                 district: dbCharger.district,
                 coordinates: dbCharger.coordinates,
+                ocppVersion: dbCharger.ocppVersion || '1.5 SOAP',
                 status: liveData ? (liveData.status || 'Connected') : 'Offline',
                 lastHeartbeat: liveData ? liveData.lastHeartbeat : null,
                 info: liveData ? liveData.info : {}
@@ -67,6 +69,7 @@ app.get('/api/chargers', async (req, res) => {
                     name: 'Unregistered Charger',
                     district: 'Unknown',
                     coordinates: null,
+                    ocppVersion: data.ws ? '1.6 JSON' : '1.5 SOAP',
                     status: data.status || 'Connected',
                     lastHeartbeat: data.lastHeartbeat,
                     info: data.info
@@ -83,13 +86,13 @@ app.get('/api/chargers', async (req, res) => {
 
 app.post('/api/chargers/register', async (req, res) => {
     try {
-        const { identity, name, district, coordinates } = req.body;
+        const { identity, name, district, coordinates, ocppVersion } = req.body;
         
         if (!identity || !name || !district) {
             return res.status(400).json({ error: 'identity, name, and district are required.' });
         }
 
-        const newCharger = new Charger({ identity, name, district, coordinates });
+        const newCharger = new Charger({ identity, name, district, coordinates, ocppVersion: ocppVersion || '1.5 SOAP' });
         await newCharger.save();
         
         res.status(201).json({ message: 'Charger registered successfully', charger: newCharger });
@@ -111,6 +114,19 @@ app.post('/api/chargers/:id/start', async (req, res) => {
     }
 
     const idTag = req.body?.idTag || 'CLIENT_USER';
+    
+    // JSON WebSocket logic
+    if (charger.ws) {
+        const messageId = uuidv4();
+        const payload = {
+            connectorId: 1,
+            idTag: idTag
+        };
+        const message = [2, messageId, 'RemoteStartTransaction', payload];
+        charger.ws.send(JSON.stringify(message));
+        return res.json({ success: true, simulated: false, message: 'RemoteStartTransaction successfully sent over WebSocket.' });
+    }
+
     const targetUrl = charger.endpoint || `http://${charger.ip}:80/ocpp`;
     const namespace = charger.isOcpp15 ? 'urn://Ocpp/Cp/2012/06/' : 'urn://Ocpp/Cp/2015/10/';
 
@@ -180,6 +196,18 @@ app.post('/api/chargers/:id/stop', async (req, res) => {
     }
 
     const transactionId = req.body.transactionId || 1;
+
+    // JSON WebSocket logic
+    if (charger.ws) {
+        const messageId = uuidv4();
+        const payload = {
+            transactionId: transactionId
+        };
+        const message = [2, messageId, 'RemoteStopTransaction', payload];
+        charger.ws.send(JSON.stringify(message));
+        return res.json({ success: true, simulated: false, message: 'RemoteStopTransaction successfully sent over WebSocket.' });
+    }
+
     const targetUrl = charger.endpoint || `http://${charger.ip}:80/ocpp`;
     const namespace = charger.isOcpp15 ? 'urn://Ocpp/Cp/2012/06/' : 'urn://Ocpp/Cp/2015/10/';
 
@@ -521,7 +549,99 @@ mongoose.connect('mongodb+srv://nipunyesh_db_user:qdlNLzjgQvhij71W@clusterev.gn0
     .then(() => console.log('Connected to MongoDB via Mongoose'))
     .catch(err => console.error('MongoDB connection error:', err));
 
+// --- OCPP 1.6 JSON Server (WebSocket) ---
+const WS_PORT = 3002;
+const wss = new WebSocketServer({ port: WS_PORT });
+
+wss.on('connection', (ws, req) => {
+    const urlParts = req.url.split('/');
+    const identity = urlParts[urlParts.length - 1] || 'Unknown';
+    
+    console.log(`[WS] New WebSocket connection for charger: ${identity}`);
+    
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    
+    if (!chargers.has(identity)) {
+        chargers.set(identity, { status: 'Connected', lastHeartbeat: new Date(), ip: ip, info: {}, ws: ws });
+    } else {
+        const existing = chargers.get(identity);
+        existing.lastHeartbeat = new Date();
+        existing.ip = ip;
+        existing.ws = ws;
+    }
+
+    ws.on('message', (messageAsString) => {
+        try {
+            const message = JSON.parse(messageAsString);
+            if (message[0] === 2) {
+                const messageId = message[1];
+                const action = message[2];
+                const payload = message[3];
+                const chargerData = chargers.get(identity);
+                chargerData.lastHeartbeat = new Date();
+
+                console.log(`[WS] [${identity}] Received ${action}`);
+
+                let responsePayload = {};
+                switch (action) {
+                    case 'BootNotification':
+                        chargerData.info = {
+                            chargePointVendor: payload.chargePointVendor,
+                            chargePointModel: payload.chargePointModel,
+                            chargeBoxSerialNumber: payload.chargeBoxSerialNumber
+                        };
+                        responsePayload = {
+                            currentTime: new Date().toISOString(),
+                            interval: 30,
+                            status: 'Accepted'
+                        };
+                        break;
+                    case 'Heartbeat':
+                        chargerData.status = 'Available';
+                        responsePayload = { currentTime: new Date().toISOString() };
+                        break;
+                    case 'StatusNotification':
+                        chargerData.status = payload.status || 'Available';
+                        responsePayload = {};
+                        break;
+                    case 'Authorize':
+                        responsePayload = { idTagInfo: { status: 'Accepted' } };
+                        break;
+                    case 'StartTransaction':
+                        responsePayload = { transactionId: 1, idTagInfo: { status: 'Accepted' } };
+                        break;
+                    case 'StopTransaction':
+                        responsePayload = { idTagInfo: { status: 'Accepted' } };
+                        break;
+                    default:
+                        console.log(`[WS] [${identity}] Unhandled action: ${action}`);
+                        break;
+                }
+                
+                ws.send(JSON.stringify([3, messageId, responsePayload]));
+            } else if (message[0] === 3) {
+                 console.log(`[WS] [${identity}] Received CALLRESULT for ${message[1]}:`, message[2]);
+            }
+        } catch (e) {
+            console.error('[WS] Error parsing message:', e.message);
+        }
+    });
+
+    ws.on('close', () => {
+        console.log(`[WS] WebSocket disconnected for charger: ${identity}`);
+        if (chargers.has(identity)) {
+            const chargerData = chargers.get(identity);
+            if (chargerData.ws === ws) {
+                chargerData.status = 'Offline';
+                chargerData.ws = null;
+            }
+        }
+    });
+});
+
 server.listen(PORT, () => {
     console.log(`SOAP Server (HTTP + TCP Debug) running on port ${PORT}`);
-    console.log(`OCPP URL should be: http://wen-conductorial-unmellifluously.ngrok-free.dev/ocpp/c1`);
+    console.log(`OCPP 1.6 JSON WebSocket Server running on port ${WS_PORT}`);
+    console.log(`OCPP SOAP URL should be: http://wen-conductorial-unmellifluously.ngrok-free.dev/ocpp/c1`);
+    console.log(`OCPP JSON URL should be: ws://localhost:${WS_PORT}/ocpp/c1`);
 });
