@@ -9,6 +9,7 @@ jest.mock('../../../api', () => ({
     fetchMessages: jest.fn(),
     fetchReport: jest.fn(),
     sendCommand: jest.fn(),
+    updateCharger: jest.fn(),
 }));
 
 const charger = {
@@ -80,4 +81,18 @@ test('dangerous commands ask for confirmation', async () => {
     expect(confirm).toHaveBeenCalled();
     expect(api.sendCommand).not.toHaveBeenCalledWith('CB-1', 'Reset', { type: 'Hard' });
     confirm.mockRestore();
+});
+
+test('command endpoint override can be set from the console', async () => {
+    api.updateCharger.mockResolvedValue({});
+    const onChanged = jest.fn();
+    render(<ChargerConsole charger={charger} onChanged={onChanged} />);
+    await screen.findByText('Rejected');
+
+    fireEvent.click(screen.getByText('Set override'));
+    fireEvent.change(screen.getByLabelText('Command endpoint override'), { target: { value: 'http://203.0.113.10:8765' } });
+    fireEvent.click(screen.getByText('Save'));
+
+    await waitFor(() => expect(api.updateCharger).toHaveBeenCalledWith('CB-1', { endpointOverride: 'http://203.0.113.10:8765' }));
+    await waitFor(() => expect(onChanged).toHaveBeenCalled());
 });

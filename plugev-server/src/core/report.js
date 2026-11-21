@@ -129,6 +129,7 @@ async function buildReport(identity) {
             firmwareVersion: charger.firmwareVersion,
             bootInfo: charger.bootInfo,
             endpoint: charger.endpoint,
+            endpointOverride: charger.endpointOverride || null,
             ip: charger.ip,
             connectors: (charger.connectors || []).map(c => c.connectorId).sort((a, b) => a - b),
         },

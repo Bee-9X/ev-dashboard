@@ -57,7 +57,7 @@ OCPP-S needs the **server to reach the charger** to send commands (tests 5, 7, 1
 
 - If the endpoint is a private address (10.x, 172.16–31.x, 192.168.x) or a mobile carrier IP, commands will fail with "Could not reach charger". Record which applies:
   - [ ] Endpoint reachable as-is
-  - [ ] Reachable via VPN / port forwarding / vendor proxy (describe)
+  - [ ] Reachable via VPN / port forwarding / vendor proxy (describe). For port forwarding, set the public URL as the **command endpoint override** in the console. Site steps: [setec-site-setup.md](setec-site-setup.md)
   - [ ] Not reachable → this model is **monitoring-only** unless the vendor provides OCPP-J firmware
 
 This finding decides ADR-001's open question.

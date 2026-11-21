@@ -10,6 +10,7 @@ Phase 0 decides **what** gets built and confirms the chargers can support it **b
 |---|---|---|
 | Integration proof-of-concept | `plugev-server/` (gateway) + Charger Station page in `plugev-portal/` | ✅ Built and tested with a simulator. **Needs a run against each real charger model** |
 | PoC test plan and results | [poc-test-plan.md](poc-test-plan.md) | 🟡 Plan ready. Results to be filled per charger |
+| SETEC site setup guide (for the client) | [setec-site-setup.md](setec-site-setup.md) | 🟡 Ready. Site test date not set |
 | Discovery inputs and open decisions | [discovery-questionnaire.md](discovery-questionnaire.md) | ⏳ Waiting on the business owner |
 | Architecture decisions | [architecture-decisions.md](architecture-decisions.md) | 🟡 Proposed. Need approval |
 | Product backlog (Phase 1–6) | [backlog.md](backlog.md) | 🟡 Draft. Refine once decisions are approved |

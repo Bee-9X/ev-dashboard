@@ -11,6 +11,7 @@ const { handleInbound, canonicalAction } = require('../core/handlers');
 const { OcppError, CommandError } = require('../util/errors');
 const { parseSoap, getCI, escapeXml, buildResponseEnvelope, buildRequestEnvelope, NAMESPACES } = require('../util/xml');
 const logger = require('../logger');
+const Charger = require('../models/Charger');
 
 const ANONYMOUS = 'http://www.w3.org/2005/08/addressing/anonymous';
 
@@ -73,13 +74,16 @@ function getOrCreateSession(identity, version) {
 
 async function sendSoapCommand(session, action, payload, timeoutMs) {
     const { identity, protocol, version } = session;
-    if (!session.endpoint) {
+    // An admin-set override (e.g. port-forwarded public URL) wins over the advertised wsa:From address.
+    const saved = await Charger.findOne({ identity }, { endpointOverride: 1 }).lean();
+    const endpoint = saved?.endpointOverride || session.endpoint;
+    if (!endpoint) {
         throw new CommandError('Failed',
-            'Charger has not advertised a reachable address (wsa:From), so commands cannot be pushed to it');
+            'Charger has not advertised a reachable address (wsa:From), so commands cannot be pushed to it. Set a command endpoint override in the portal.');
     }
 
     const messageId = randomUUID();
-    const envelope = buildRequestEnvelope({ version, identity, action, to: session.endpoint, messageId, payload });
+    const envelope = buildRequestEnvelope({ version, identity, action, to: endpoint, messageId, payload });
     messageLog.record({
         chargerIdentity: identity, protocol, direction: 'out', kind: 'CALL', action, messageId, payload, raw: envelope,
     });
@@ -89,7 +93,7 @@ async function sendSoapCommand(session, action, payload, timeoutMs) {
     let res;
     let body;
     try {
-        res = await fetch(session.endpoint, {
+        res = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': `application/soap+xml; charset=utf-8; action="/${action}"` },
             body: envelope,
@@ -99,8 +103,8 @@ async function sendSoapCommand(session, action, payload, timeoutMs) {
     } catch (err) {
         const timedOut = err.name === 'AbortError';
         const message = timedOut
-            ? `No response from ${session.endpoint} within ${timeoutMs} ms`
-            : `Could not reach charger at ${session.endpoint}: ${err.cause?.code || err.message}`;
+            ? `No response from ${endpoint} within ${timeoutMs} ms`
+            : `Could not reach charger at ${endpoint}: ${err.cause?.code || err.message}`;
         messageLog.record({
             chargerIdentity: identity, protocol, direction: 'in', kind: 'CALLERROR', action, messageId,
             error: { code: timedOut ? 'Timeout' : 'Unreachable', description: message },

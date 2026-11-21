@@ -9,10 +9,10 @@ Owner: ______________  Target date: ______________
 | # | Question | Answer |
 |---|---|---|
 | 1.1 | List every charger brand / model / firmware in use or planned (fill one row per model in the table below) | |
-| 1.2 | Which protocol does each speak today (OCPP 1.5 SOAP, 1.6 SOAP, 1.6J, 2.0.1, vendor API)? Can the vendor upgrade SOAP units to OCPP 1.6J firmware? | |
+| 1.2 | Which protocol does each speak today (OCPP 1.5 SOAP, 1.6 SOAP, 1.6J, 2.0.1, vendor API)? Can the vendor upgrade SOAP units to OCPP 1.6J firmware? | SETEC "CPM CHADEMO AND CCS": OCPP 1.5 SOAP. **No OCPP 1.6J firmware available** (client, 2026-11-21). |
 | 1.3 | Do we have vendor protocol documentation and a support contact for each? | |
-| 1.4 | Is at least one test unit (or vendor simulator) available per model? (§17.1) | |
-| 1.5 | How do chargers connect (SIM, site Wi-Fi, Ethernet)? Is there a fixed public IP or VPN? (Decides whether SOAP commands can reach them; see the PoC test plan) | |
+| 1.4 | Is at least one test unit (or vendor simulator) available per model? (§17.1) | SETEC: a control tablet running the SETEC OCPP software, on the developer's LAN. It **cannot simulate charging**, so only protocol-level tests are possible with it. The real charger is ~200 km away on a separate network. (2026-11-21) |
+| 1.5 | How do chargers connect (SIM, site Wi-Fi, Ethernet)? Is there a fixed public IP or VPN? (Decides whether SOAP commands can reach them; see the PoC test plan) | SETEC site: the charger uses **site Wi-Fi**; the client **has access to the router** (2026-11-21). Fixed public IP: to confirm. Site test with the real charger is planned; date not set yet. |
 | 1.6 | Which remote commands must work per model (start/stop, reset, unlock, availability)? Is remote start/stop permitted at all for each network? (§17 "Charger control") | |
 
 | Brand | Model | Firmware | Protocol | Connectors (type / kW) | Units | Test unit? |

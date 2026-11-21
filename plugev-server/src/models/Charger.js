@@ -45,6 +45,9 @@ const chargerSchema = new mongoose.Schema({
     firmwareVersion: String,
     bootInfo: { type: mongoose.Schema.Types.Mixed, default: {} }, // full BootNotification payload
     endpoint: String, // SOAP only: where the charger listens for commands (wsa:From)
+    // SOAP only: admin-set address used instead of `endpoint`, e.g. a port-forwarded public URL
+    // when the charger keeps advertising its private LAN address.
+    endpointOverride: String,
     ip: String,
 
     connectionState: { type: String, enum: ['Online', 'Offline'], default: 'Offline' },

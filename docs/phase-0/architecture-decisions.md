@@ -16,6 +16,15 @@ Each record is **Proposed** until approved at Phase 0 sign-off. The spec's techn
 
 **Open question.** Do SOAP chargers' command endpoints reach the server? See the PoC test plan's "SOAP-specific check".
 
+**Findings so far (2026-11-21, SETEC "CPM CHADEMO AND CCS").**
+- The SETEC OCPP 1.5 SOAP software works with the PoC in both directions on the same LAN (BootNotification, Heartbeat, GetConfiguration). Tested with the client's control tablet, not the charger.
+- SETEC has **no OCPP 1.6J firmware** for this model, so point 4 does not apply: this fleet stays on SOAP.
+- The real charger is on a remote site network. Remote control therefore depends on the server reaching the charger's command endpoint. Options, in order of preference:
+  1. **Site VPN** (WireGuard/Tailscale subnet router or a VPN-capable site router) so the server reaches the charger's LAN address directly. Not exposed to the internet; no charger config change. The site subnet must not overlap the server's network.
+  2. **Port forwarding** on the site router plus a stable public IP or dynamic DNS name. Simpler, but exposes the charger's SOAP port to the internet; restrict by source IP. The PoC supports a per-charger **command endpoint override** (portal console, or `PATCH /api/chargers/:id` with `endpointOverride`) for when the charger keeps advertising its LAN address. Site steps: [setec-site-setup.md](setec-site-setup.md).
+  3. **Monitoring only** if neither is possible.
+
+
 ---
 
 ## ADR-002 – PostgreSQL as the system of record (replace MongoDB)

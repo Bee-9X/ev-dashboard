@@ -28,6 +28,11 @@ export async function fetchAllChargers() {
   }
 }
 
+/** Update editable charger fields: name, district, coordinates, endpointOverride ('' clears it). */
+export function updateCharger(identity, fields) {
+  return request('PATCH', `/chargers/${encodeURIComponent(identity)}`, fields);
+}
+
 export function fetchCharger(identity) {
   return request('GET', `/chargers/${encodeURIComponent(identity)}`);
 }
