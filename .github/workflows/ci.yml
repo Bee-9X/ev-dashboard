@@ -1,0 +1,90 @@
+# Runs on every pull request and on pushes to main (spec 14.2: tests and dependency scanning on every PR).
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: plugev-api (core API)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: plugev-api
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: plugev_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/plugev_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: plugev-api/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Dependency audit (fails on high or critical)
+        run: npm audit --omit=dev --audit-level=high
+
+  gateway:
+    name: plugev-server (OCPP gateway PoC)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: plugev-server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: plugev-server/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - name: Dependency audit (fails on high or critical)
+        run: npm audit --omit=dev --audit-level=high
+
+  portal:
+    name: plugev-portal (Phase 0 portal)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: plugev-portal
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: plugev-portal/package-lock.json
+      # The template's dependency tree has peer conflicts (see instructions.txt); the new portal (ADR-005) will not.
+      - run: npm ci --force
+      - run: npx react-scripts test --watchAll=false
+        env:
+          CI: "true"
+      # Report only: the template has known vulnerable packages and is being replaced in Phase 2.
+      - name: Dependency audit (report only)
+        run: npm audit --omit=dev --audit-level=high || true

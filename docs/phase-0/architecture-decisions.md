@@ -29,6 +29,8 @@ Each record is **Proposed** until approved at Phase 0 sign-off. The spec's techn
 
 ## ADR-002 – PostgreSQL as the system of record (replace MongoDB)
 
+**Status: Accepted (2026-11-21).** Implemented in `plugev-api/` (Phase 1).
+
 **Context.** The spec data model (§8) is relational: tenant scoping by `network_id` on every row, foreign keys (§8.2), decimal money (§8.2), immutable financial/audit records, and geospatial nearest-station queries (§8.3). The PoC uses MongoDB Atlas.
 
 **Options.** (a) Keep MongoDB. (b) PostgreSQL + PostGIS, plus TimescaleDB for meter values. (c) PostgreSQL now, time-series storage later.
@@ -40,6 +42,8 @@ Each record is **Proposed** until approved at Phase 0 sign-off. The spec's techn
 ---
 
 ## ADR-003 – Backend: Node.js + TypeScript + NestJS, as a modular monolith
+
+**Status: In use (2026-11-21).** `plugev-api/` uses **NestJS 11**, not 12. NestJS 12 (August 2026) is ES-modules only, which complicates the Jest/TypeORM toolchain; NestJS 11 is still maintained. Upgrade once the tooling supports it well.
 
 **Context.** Spec §6.2 recommends a modular monolith for business domains plus a separately deployable charger connectivity service. §6.3 lists Spring Boot, .NET or Node/NestJS. The team's existing skills are JavaScript/React.
 

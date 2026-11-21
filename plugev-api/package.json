@@ -1,0 +1,63 @@
+{
+  "name": "plugev-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PLUG EV core API (Phase 1): identity, RBAC with tenant scope, audit, /api/v1",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "build": "nest build",
+    "start": "node dist/main.js",
+    "start:dev": "nest start --watch",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "migration:run": "typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts",
+    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts",
+    "migration:create": "typeorm-ts-node-commonjs migration:create",
+    "seed:super-admin": "ts-node src/cli/create-super-admin.ts",
+    "test": "jest --runInBand"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.2.11",
+    "@nestjs/core": "^11.2.11",
+    "@nestjs/jwt": "^11.0.2",
+    "@nestjs/platform-express": "^11.2.11",
+    "@nestjs/swagger": "^11.4.8",
+    "@nestjs/throttler": "^6.8.0",
+    "@nestjs/typeorm": "^11.0.3",
+    "@node-rs/argon2": "^2.2.2",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "dotenv": "^17.4.2",
+    "nestjs-pino": "^5.3.2",
+    "pg": "^8.23.1",
+    "pino": "^10.4.0",
+    "pino-http": "^11.0.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "typeorm": "^0.3.31",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.24",
+    "@nestjs/testing": "^11.2.11",
+    "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.19.2",
+    "@types/pg": "^8.23.1",
+    "@types/supertest": "^7.2.1",
+    "embedded-postgres": "^18.7.0-beta.19",
+    "jest": "^30.5.2",
+    "pino-pretty": "^13.2.0",
+    "supertest": "^7.3.2",
+    "ts-jest": "^29.4.15",
+    "ts-node": "^10.9.2",
+    "typescript": "~5.9.3"
+  },
+  "allowScripts": {
+    "@embedded-postgres/windows-x64@18.7.0-beta.19": true,
+    "@parcel/watcher": false,
+    "@scarf/scarf": false
+  }
+}

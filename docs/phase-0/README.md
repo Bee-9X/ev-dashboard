@@ -12,7 +12,7 @@ Phase 0 decides **what** gets built and confirms the chargers can support it **b
 | PoC test plan and results | [poc-test-plan.md](poc-test-plan.md) | 🟡 Plan ready. Results to be filled per charger |
 | SETEC site setup guide (for the client) | [setec-site-setup.md](setec-site-setup.md) | 🟡 Ready. Site test date not set |
 | Discovery inputs and open decisions | [discovery-questionnaire.md](discovery-questionnaire.md) | ⏳ Waiting on the business owner |
-| Architecture decisions | [architecture-decisions.md](architecture-decisions.md) | 🟡 Proposed. Need approval |
+| Architecture decisions | [architecture-decisions.md](architecture-decisions.md) | 🟡 ADR-002 accepted (PostgreSQL); NestJS in use; others proposed |
 | Product backlog (Phase 1–6) | [backlog.md](backlog.md) | 🟡 Draft. Refine once decisions are approved |
 | Approved scope | Spec v1.0 + amendments from the questionnaire and ADRs | ⏳ Sign-off pending |
 

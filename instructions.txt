@@ -1,4 +1,10 @@
 Phase 0 status, test plan and decisions: see docs/phase-0/README.md
+Phase 1 status: see docs/phase-1/README.md
+
+The repository has three apps:
+  plugev-api     core API (Phase 1: users, roles, networks, audit) - NestJS + PostgreSQL. See plugev-api/README.md
+  plugev-server  charger gateway (OCPP 1.5/1.6 SOAP and 1.6J) - Phase 0 PoC, MongoDB
+  plugev-portal  admin portal (Phase 0 template + charger test console)
 
 
 Server SOAP (Back end / charger gateway)

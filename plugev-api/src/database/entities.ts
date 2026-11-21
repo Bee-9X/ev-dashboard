@@ -1,0 +1,149 @@
+import {
+    Column, CreateDateColumn, Entity, PrimaryColumn, PrimaryGeneratedColumn, UpdateDateColumn,
+} from 'typeorm';
+
+/*
+ * Column names are snake_case to match spec 8.1. The schema itself is owned by the SQL migrations
+ * (synchronize is always off); these classes only map rows.
+ */
+
+export type NetworkStatus = 'active' | 'suspended' | 'archived';
+
+@Entity('networks')
+export class NetworkEntity {
+    @PrimaryGeneratedColumn('uuid') id: string;
+    @Column() name: string;
+    @Column({ type: 'text' }) status: NetworkStatus;
+    @Column({ name: 'default_currency', type: 'char', length: 3 }) defaultCurrency: string;
+    @Column({ name: 'time_zone' }) timeZone: string;
+    @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date;
+    @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date;
+}
+
+export type StationStatus = 'active' | 'inactive';
+
+@Entity('stations')
+export class StationEntity {
+    @PrimaryGeneratedColumn('uuid') id: string;
+    @Column({ name: 'network_id', type: 'uuid' }) networkId: string;
+    @Column() name: string;
+    @Column({ type: 'text' }) status: StationStatus;
+    @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date;
+    @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date;
+}
+
+export type UserStatus = 'invited' | 'active' | 'suspended' | 'deactivated';
+
+@Entity('users')
+export class UserEntity {
+    @PrimaryGeneratedColumn('uuid') id: string;
+    @Column() email: string;
+    @Column({ type: 'text', nullable: true }) phone: string | null;
+    @Column({ name: 'full_name' }) fullName: string;
+    @Column({ name: 'password_hash', type: 'text', nullable: true, select: false }) passwordHash: string | null;
+    @Column({ type: 'text' }) status: UserStatus;
+    @Column({ name: 'failed_login_count', type: 'int', default: 0 }) failedLoginCount: number;
+    @Column({ name: 'locked_until', type: 'timestamptz', nullable: true }) lockedUntil: Date | null;
+    @Column({ name: 'last_login_at', type: 'timestamptz', nullable: true }) lastLoginAt: Date | null;
+    @Column({ name: 'password_changed_at', type: 'timestamptz', nullable: true }) passwordChangedAt: Date | null;
+    @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date;
+    @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date;
+}
+
+export type RoleScope = 'platform' | 'network' | 'station' | 'self';
+
+@Entity('roles')
+export class RoleEntity {
+    @PrimaryColumn() code: string;
+    @Column() name: string;
+    @Column({ name: 'scope_type', type: 'text' }) scopeType: RoleScope;
+    @Column({ type: 'text' }) description: string;
+}
+
+@Entity('permissions')
+export class PermissionEntity {
+    @PrimaryColumn() code: string;
+    @Column({ type: 'text' }) description: string;
+}
+
+@Entity('user_role_assignments')
+export class RoleAssignmentEntity {
+    @PrimaryGeneratedColumn('uuid') id: string;
+    @Column({ name: 'user_id', type: 'uuid' }) userId: string;
+    @Column({ name: 'role_code' }) roleCode: string;
+    @Column({ name: 'network_id', type: 'uuid', nullable: true }) networkId: string | null;
+    @Column({ name: 'station_id', type: 'uuid', nullable: true }) stationId: string | null;
+    @Column({ name: 'effective_from', type: 'timestamptz' }) effectiveFrom: Date;
+    @Column({ name: 'effective_to', type: 'timestamptz', nullable: true }) effectiveTo: Date | null;
+    @Column({ name: 'created_by', type: 'uuid', nullable: true }) createdBy: string | null;
+    @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date;
+}
+
+@Entity('refresh_tokens')
+export class RefreshTokenEntity {
+    @PrimaryColumn('uuid') id: string;
+    @Column({ name: 'user_id', type: 'uuid' }) userId: string;
+    @Column({ name: 'family_id', type: 'uuid' }) familyId: string;
+    @Column({ name: 'token_hash' }) tokenHash: string;
+    @Column({ name: 'expires_at', type: 'timestamptz' }) expiresAt: Date;
+    @Column({ name: 'revoked_at', type: 'timestamptz', nullable: true }) revokedAt: Date | null;
+    @Column({ name: 'revoked_reason', type: 'text', nullable: true }) revokedReason: string | null;
+    @Column({ name: 'replaced_by', type: 'uuid', nullable: true }) replacedBy: string | null;
+    @Column({ name: 'created_ip', type: 'text', nullable: true }) createdIp: string | null;
+    @Column({ name: 'user_agent', type: 'text', nullable: true }) userAgent: string | null;
+    @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date;
+}
+
+export type AuthTokenPurpose = 'password_reset' | 'invite';
+
+@Entity('auth_tokens')
+export class AuthTokenEntity {
+    @PrimaryColumn('uuid') id: string;
+    @Column({ name: 'user_id', type: 'uuid' }) userId: string;
+    @Column({ type: 'text' }) purpose: AuthTokenPurpose;
+    @Column({ name: 'token_hash' }) tokenHash: string;
+    @Column({ name: 'expires_at', type: 'timestamptz' }) expiresAt: Date;
+    @Column({ name: 'used_at', type: 'timestamptz', nullable: true }) usedAt: Date | null;
+    @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date;
+}
+
+export type LoginEventType =
+    | 'login_succeeded' | 'login_failed' | 'account_locked' | 'logout' | 'token_refreshed'
+    | 'refresh_token_reuse' | 'password_reset_requested' | 'password_reset_completed' | 'invite_accepted';
+
+@Entity('login_events')
+export class LoginEventEntity {
+    @PrimaryGeneratedColumn('uuid') id: string;
+    @Column({ name: 'user_id', type: 'uuid', nullable: true }) userId: string | null;
+    @Column({ type: 'text', nullable: true }) email: string | null;
+    @Column({ name: 'event_type', type: 'text' }) eventType: LoginEventType;
+    @Column({ type: 'text', nullable: true }) reason: string | null;
+    @Column({ type: 'text', nullable: true }) ip: string | null;
+    @Column({ name: 'user_agent', type: 'text', nullable: true }) userAgent: string | null;
+    @Column({ name: 'correlation_id', type: 'text', nullable: true }) correlationId: string | null;
+    @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date;
+}
+
+export type AuditOutcome = 'success' | 'denied' | 'failure';
+
+@Entity('audit_logs')
+export class AuditLogEntity {
+    @PrimaryGeneratedColumn('uuid') id: string;
+    @Column({ name: 'occurred_at', type: 'timestamptz' }) occurredAt: Date;
+    @Column({ name: 'actor_user_id', type: 'uuid', nullable: true }) actorUserId: string | null;
+    @Column({ name: 'actor_roles', type: 'text', array: true, default: () => "'{}'" }) actorRoles: string[];
+    @Column({ name: 'network_id', type: 'uuid', nullable: true }) networkId: string | null;
+    @Column({ name: 'station_id', type: 'uuid', nullable: true }) stationId: string | null;
+    @Column({ type: 'text' }) action: string;
+    @Column({ name: 'resource_type', type: 'text' }) resourceType: string;
+    @Column({ name: 'resource_id', type: 'text', nullable: true }) resourceId: string | null;
+    @Column({ type: 'text' }) outcome: AuditOutcome;
+    @Column({ name: 'correlation_id', type: 'text', nullable: true }) correlationId: string | null;
+    @Column({ type: 'text', nullable: true }) ip: string | null;
+    @Column({ type: 'jsonb', default: () => "'{}'" }) details: Record<string, unknown>;
+}
+
+export const ENTITIES = [
+    NetworkEntity, StationEntity, UserEntity, RoleEntity, PermissionEntity, RoleAssignmentEntity,
+    RefreshTokenEntity, AuthTokenEntity, LoginEventEntity, AuditLogEntity,
+];

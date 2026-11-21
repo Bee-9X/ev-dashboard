@@ -1,0 +1,112 @@
+# plugev-api – PLUG EV core API
+
+Phase 1 foundation of the platform described in the technical specification:
+
+- **Identity**: login, refresh-token rotation, logout, password reset, invitations, account status, lockout, login event log (FR AUTH 001, 002, 004, 005, 006).
+- **Authorization**: RBAC with network and station scope, resolved on the server and deny by default (spec 2.2, 3).
+- **Audit**: append-only audit log, enforced by the database (spec 3.2, 11.3).
+- **API standards**: `/api/v1`, OpenAPI, one error format, correlation IDs, pagination (spec 9).
+- **Ops**: health and readiness probes, structured JSON logs (spec 13.2).
+
+Networks and stations exist only so tenants and station scope can be tested. Full station, EVSE and connector management is Phase 2. MFA (FR AUTH 003) is the next Phase 1 increment.
+
+Stack (ADR-002, ADR-003): Node 24, NestJS 11, TypeScript, PostgreSQL, TypeORM migrations, Argon2id, pino.
+
+## Run locally
+
+Requirements: Node 22.12+ and PostgreSQL 13+ (PostgreSQL 18 is already installed on the dev PC).
+
+```bash
+cd plugev-api
+npm install
+cp .env.example .env
+```
+
+1. Create a database, e.g. in pgAdmin or `psql`: `CREATE DATABASE plugev;`
+2. In `.env`:
+   - set `DATABASE_URL`;
+   - set `JWT_ACCESS_SECRET` (generate one with `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"`).
+3. Create the first Super Admin. The command asks for the password, so it is not saved in shell history:
+   ```bash
+   npm run seed:super-admin -- --email you@example.com --name "Your Name"
+   ```
+4. Start the API:
+   ```bash
+   npm run start:dev
+   ```
+   - API: http://localhost:4000/api/v1
+   - Interactive docs: http://localhost:4000/api/docs
+
+Migrations run automatically at startup (`DB_RUN_MIGRATIONS=true`). They can also be run by hand with `npm run migration:run` / `migration:revert`.
+
+## Try it
+
+```bash
+# sign in
+curl -s -X POST localhost:4000/api/v1/auth/login -H 'content-type: application/json' \
+  -d '{"email":"you@example.com","password":"..."}'
+# use the accessToken
+curl -s localhost:4000/api/v1/users/me -H "authorization: Bearer <accessToken>"
+```
+
+Or use the **Authorize** button in the docs page.
+
+Typical first steps as Super Admin:
+1. `POST /networks`
+2. `POST /stations`
+3. `POST /users` to invite a Network Admin.
+
+Email delivery is not configured yet (spec 17). Outside production, invitation and reset links are written to the API log.
+
+## Tests
+
+```bash
+npm test
+```
+
+- 57 tests: unit tests, plus end-to-end tests against a real PostgreSQL.
+- Locally a throwaway PostgreSQL is downloaded and started automatically (embedded-postgres). No setup is needed and your own database is not touched.
+- Set `TEST_DATABASE_URL` to use an existing empty database instead; CI does this.
+
+## Roles
+
+| Role | Scope | Can |
+|---|---|---|
+| SUPER_ADMIN | Platform | Everything. Created only with the CLI command or by another Super Admin. |
+| NETWORK_ADMIN | One network | Edit own network; create stations; invite and manage Station Admins in the network; read users and audit log of the network. Cannot suspend networks. |
+| STATION_ADMIN | Assigned stations | Read and update assigned stations. Remote commands only if delegated later. |
+| EV_USER | Own account | Customer app, Phase 4. |
+
+The permission catalogue is in `src/access/permissions.ts`; the database copy is seeded by migration.
+
+Rules enforced by the code:
+- Scope always comes from the signed-in user's role assignments. Ids that the client sends are checked against it.
+- A resource outside the caller's scope answers **404**, not 403, so other tenants' ids cannot be probed.
+- Changes take effect on the next request:
+  - suspending a user;
+  - removing a role;
+  - suspending a network (it cuts off that network's admins).
+- The platform always keeps at least one active Super Admin, and nobody can change their own status or remove their own Super Admin role.
+
+## Error format
+
+```json
+{ "error": { "code": "VALIDATION_FAILED", "message": "Request validation failed", "correlationId": "…", "details": [{ "field": "email", "issues": ["email must be an email"] }] } }
+```
+
+Every response carries `X-Correlation-Id`. Clients may send their own; it is used in logs, audit rows and errors.
+
+## Layout
+
+```
+src/
+  access/     permission catalogue, AccessContext (scope), global AccessGuard, decorators
+  auth/       login, tokens (JWT access + rotating refresh), password reset/invite, login events
+  users/      invite, roles, status
+  networks/   networks + minimal stations
+  audit/      append-only audit service and query endpoint
+  common/     error format, correlation id, validation, pagination
+  database/   entities, migrations, data source
+  cli/        create-super-admin
+test/         end-to-end tests (auth, rbac, platform)
+```
