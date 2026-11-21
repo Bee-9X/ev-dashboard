@@ -46,6 +46,19 @@ function editableFields(body, { requireAll }) {
         if (!OCPP_VERSIONS.includes(body.ocppVersion)) throw new ValidationError(`ocppVersion must be one of ${OCPP_VERSIONS.join(', ')}`);
         out.ocppVersion = body.ocppVersion;
     }
+    if (body.endpointOverride !== undefined) {
+        const v = body.endpointOverride === null ? '' : body.endpointOverride;
+        if (typeof v !== 'string' || v.length > 500) throw new ValidationError('endpointOverride must be a URL string');
+        const trimmed = v.trim();
+        if (trimmed) {
+            let url;
+            try { url = new URL(trimmed); } catch { url = null; }
+            if (!url || !['http:', 'https:'].includes(url.protocol)) {
+                throw new ValidationError('endpointOverride must be an http:// or https:// URL');
+            }
+        }
+        out.endpointOverride = trimmed || null; // empty clears the override
+    }
     const coords = validCoordinates(body.coordinates);
     if (coords) out.coordinates = coords;
     return out;

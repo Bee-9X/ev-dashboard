@@ -9,7 +9,7 @@ import { faChargingStation } from '@fortawesome/free-solid-svg-icons';
 import Widget from '../../../components/Widget';
 import StatusBadge from '../../../components/StatusBadge/StatusBadge';
 import {
-    fetchCommands, fetchMessages, fetchReport, fetchTransactions, sendCommand,
+    fetchCommands, fetchMessages, fetchReport, fetchTransactions, sendCommand, updateCharger,
 } from '../../../api';
 
 const TRIGGERABLE = ['StatusNotification', 'Heartbeat', 'MeterValues', 'BootNotification', 'FirmwareStatusNotification', 'DiagnosticsStatusNotification'];
@@ -35,6 +35,73 @@ function summarize(obj) {
     const s = typeof obj === 'string' ? obj : JSON.stringify(obj);
     return s.length > 140 ? `${s.slice(0, 140)}…` : s;
 }
+
+/**
+ * SOAP chargers receive commands at the address they advertise (wsa:From). When that is a private
+ * LAN address behind port forwarding, an admin can set the public URL here instead.
+ */
+const CommandEndpoint = ({ charger, onChanged }) => {
+    const [editing, setEditing] = useState(false);
+    const [value, setValue] = useState(charger.endpointOverride || '');
+    const [error, setError] = useState(null);
+    const [saving, setSaving] = useState(false);
+
+    const save = async (next) => {
+        setSaving(true);
+        setError(null);
+        try {
+            await updateCharger(charger.identity, { endpointOverride: next });
+            setEditing(false);
+            if (onChanged) onChanged();
+        } catch (e) {
+            setError(e.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <>
+            <div>
+                Advertised: <code>{charger.endpoint || 'not advertised'}</code>
+            </div>
+            {charger.endpointOverride && (
+                <div>
+                    Override (in use): <code>{charger.endpointOverride}</code>
+                </div>
+            )}
+            {!charger.endpoint && !charger.endpointOverride && (
+                <div className="text-danger small">Commands cannot be pushed until an address is known.</div>
+            )}
+            {editing ? (
+                <div className="mt-1">
+                    <Input
+                        bsSize="sm"
+                        placeholder="http://203.0.113.10:8765"
+                        value={value}
+                        onChange={e => setValue(e.target.value)}
+                        aria-label="Command endpoint override"
+                    />
+                    <div className="mt-1">
+                        <Button size="sm" color="primary" disabled={saving} onClick={() => save(value)}>Save</Button>{' '}
+                        <Button size="sm" color="secondary" outline disabled={saving} onClick={() => { setEditing(false); setError(null); }}>Cancel</Button>
+                    </div>
+                    <small className="text-muted d-block">Leave empty and save to use the advertised address again.</small>
+                </div>
+            ) : (
+                <div className="mt-1">
+                    <Button size="sm" color="link" className="p-0" onClick={() => { setValue(charger.endpointOverride || ''); setEditing(true); }}>
+                        {charger.endpointOverride ? 'Change override' : 'Set override'}
+                    </Button>
+                    {charger.endpointOverride && (
+                        <Button size="sm" color="link" className="p-0 ml-3 text-danger" disabled={saving} onClick={() => save('')}>Remove override</Button>
+                    )}
+                </div>
+            )}
+            {error && <div className="text-danger small">{error}</div>}
+        </>
+    );
+};
 
 const ChargerConsole = ({ charger, onChanged }) => {
     const identity = charger.identity;
@@ -145,7 +212,7 @@ const ChargerConsole = ({ charger, onChanged }) => {
                                 {charger.backend === 'SOAP' && (
                                     <tr>
                                         <td className="fw-semi-bold">Command endpoint</td>
-                                        <td><code>{charger.endpoint || 'not advertised — commands cannot be pushed'}</code></td>
+                                        <td><CommandEndpoint charger={charger} onChanged={onChanged} /></td>
                                     </tr>
                                 )}
                                 <tr><td className="fw-semi-bold">Last seen</td><td>{fmtTime(charger.lastSeenAt)}</td></tr>

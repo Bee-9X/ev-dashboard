@@ -160,6 +160,8 @@ function toApi(doc) {
         connectedAt: doc.connectedAt || null,
         ip: doc.ip || null,
         endpoint: doc.endpoint || null,
+        endpointOverride: doc.endpointOverride || null,
+        commandEndpoint: doc.endpointOverride || doc.endpoint || null,
         info: {
             chargePointVendor: doc.vendor,
             chargePointModel: doc.model,

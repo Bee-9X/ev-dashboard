@@ -194,3 +194,28 @@ test('malformed XML gets a SOAP fault, discovery GET gets 200', async () => {
     const get = await fetch(stack.base + '/ocpp/CB-15');
     assert.equal(get.status, 200);
 });
+
+test('command endpoint override: validated, used instead of wsa:From, and clearable', async () => {
+    // CB-16 advertised an unreachable wsa:From (see earlier test).
+    const bad = await api(stack.base, 'PATCH', '/chargers/CB-16', { endpointOverride: 'ftp://nope' });
+    assert.equal(bad.status, 400);
+
+    const set = await api(stack.base, 'PATCH', '/chargers/CB-16', { endpointOverride: cpUrl });
+    assert.equal(set.status, 200);
+    assert.equal(set.body.endpointOverride, cpUrl);
+    assert.equal(set.body.commandEndpoint, cpUrl);
+    assert.equal(set.body.endpoint, 'http://127.0.0.1:1/unreachable');
+
+    cpReply = () => ({ status: 'Accepted' });
+    const before = received.length;
+    const ok = await api(stack.base, 'POST', '/chargers/CB-16/commands/Reset', { type: 'Soft' });
+    assert.equal(ok.body.state, 'Accepted', JSON.stringify(ok.body));
+    assert.equal(received.length, before + 1);
+    assert.equal(received.at(-1).parsed.header.chargeBoxIdentity, 'CB-16');
+
+    const cleared = await api(stack.base, 'PATCH', '/chargers/CB-16', { endpointOverride: '' });
+    assert.equal(cleared.body.endpointOverride, null);
+    const fail = await api(stack.base, 'POST', '/chargers/CB-16/commands/Reset', { type: 'Soft' });
+    assert.equal(fail.body.state, 'Failed');
+    assert.match(fail.body.error?.message || fail.body.error || JSON.stringify(fail.body), /127\.0\.0\.1:1/);
+});
