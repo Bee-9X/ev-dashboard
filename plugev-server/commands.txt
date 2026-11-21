@@ -1,0 +1,22 @@
+Expose the server with ngrok (one tunnel carries the API, OCPP SOAP and OCPP-J):
+
+    ngrok http 3003 --scheme http
+
+Charger settings (replace the host with the URL ngrok prints; it changes on every ngrok restart
+unless you reserve a static domain):
+
+  OCPP 1.5 / 1.6 SOAP chargers
+    OCPP URL:      http://<your-subdomain>.ngrok-free.dev/ocpp/<chargeBoxIdentity>
+    Port:          80
+
+  OCPP 1.6 JSON chargers
+    OCPP URL:      ws://<your-subdomain>.ngrok-free.dev/ocpp/<chargeBoxIdentity>
+                   (wss:// on port 443 if the charger supports TLS)
+
+Note for SOAP: remote commands (start/stop/reset/...) are pushed from this server TO the address
+the charger reports in its wsa:From header. If that address is a private LAN/mobile IP the
+commands will fail with "Could not reach charger". That is a Phase 0 finding to record, not a bug.
+
+Simulate an OCPP 1.6J charger without hardware:
+
+    npm run simulate -- --url ws://localhost:3003/ocpp/SIM-001

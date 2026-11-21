@@ -1,35 +1,42 @@
+Phase 0 status, test plan and decisions: see docs/phase-0/README.md
+
+
+Server SOAP (Back end / charger gateway)
+
+1. cd plugev-server
+2. Copy .env.example to .env and set MONGODB_URI (never commit .env).
+   If the ngrok URL will be public, also set API_KEY.
+3. 'npm install', then 'npm run dev' to start the server.
+4. 'npm test' runs the automated tests (no database needed; it uses an in-memory MongoDB).
+
+The server listens on port 3003 for everything: the portal API, OCPP 1.5/1.6 SOAP chargers and
+OCPP 1.6 JSON (WebSocket) chargers. Port 3002 is also kept open for JSON chargers that were
+configured with it before.
+
+
 Plug EV Client (Front end)
 
-use 'npm install --force' in the front end. Default npm install might not work 
-due to package conflicts. then 'npm start' to start the front end
+1. cd plugev-portal
+2. Copy .env.example to .env. If the backend has API_KEY set, put the same value in REACT_APP_API_KEY.
+3. 'npm install --force' (default npm install might not work due to package conflicts),
+   then 'npm start'.
+
+The "Charger Station Information" page is the charger test console: live status, all remote
+commands, sessions, OCPP message log and the Phase 0 checklist.
 
 
-Server SOAP (Back end)
+Exposing the server to chargers (ngrok)
 
-use 'npm install' and then 'npm run dev' to start the server
-
-
-Install ngrok on the machine that is use to run the project.
+Install ngrok on the machine that runs the project:
 (https://dashboard.ngrok.com/get-started/setup/windows)
 
-This is to expose local server, to the internet, so that the charger can connect to that
+Register your auth token on the machine (the command is on that page; the token is in the
+'Your Authtoken' section on the left sidebar). ngrok may ask you to attach a bank card; there is
+no charge for this usage.
 
-After installing, you have to register your auth token in the laptop/desktop. Above link
-Contains the command
+Then follow plugev-server/commands.txt to start the tunnel and configure the charger. The ngrok URL
+can change each time ngrok restarts, so update the charger settings accordingly.
 
-You can find the auth token in 'Your Authtoken' section on the left sidebar (It's on top)
-
-Then, when you are running ngrok commads, you will have to connect a bank card to the 
-ngrok, but no worries there. There will be no charge as I also have done that. 
-
-Once that is setup, you can follow the commands.txt in the server-soap project to setup
-the ngrok tunnel
-
-note that the 'charger settings' on that file is what I get when I ran the command.
-You might get a different URL. So you will have to update the charger settings accordingly.
-
-Once the ngrok tunnel is active, the charger is connected, and the back end is running,
-you can see the logs in the back end terminal, from the charger.
-
-Front end is also connected to the charger. 
-
+No charger at hand? Run a simulated OCPP 1.6J charger:
+    cd plugev-server
+    npm run simulate -- --url ws://localhost:3003/ocpp/SIM-001
