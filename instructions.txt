@@ -1,10 +1,14 @@
+Step-by-step guide to run everything on this PC without Docker (database, API, gateway, ngrok,
+admin portal, charger console), with every command and a troubleshooting table:
+  docs/running-locally.md
+
 Phase 0 status, test plan and decisions: see docs/phase-0/README.md
 Phase 1 status: see docs/phase-1/README.md
 
 The repository has four apps:
-  plugev-api     core API (Phase 1: users, roles, networks, audit) - NestJS + PostgreSQL. See plugev-api/README.md
+  plugev-api     core API (users, roles, networks, stations, chargers, live status) - NestJS + PostgreSQL. See plugev-api/README.md
   plugev-server  charger gateway (OCPP 1.5/1.6 SOAP and 1.6J) - Phase 0 PoC, MongoDB
-  plugev-admin   new admin portal (sign-in with MFA, profile) - React + TypeScript. See plugev-admin/README.md
+  plugev-admin   new admin portal (users, stations, chargers, QR stickers, live status) - React + TypeScript. See plugev-admin/README.md
   plugev-portal  Phase 0 portal (old template + charger test console), being replaced by plugev-admin
 
 Run everything with Docker (needs Docker Desktop):
