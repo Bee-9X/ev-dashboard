@@ -14,12 +14,14 @@ Epics per spec phase. Requirement IDs refer to spec §4; acceptance criteria (AC
 | E1.7 Observability | Structured logs, metrics, health/readiness endpoints, alerting baseline | §13.2 |
 
 ## Phase 2 – Administration portal
+Plan and progress: [../phase-2/README.md](../phase-2/README.md)
+
 | Epic | Scope | Spec refs |
 |---|---|---|
 | E2.1 Portal shell | New React+TS app, role-aware navigation, login/MFA screens | ADR-005 |
 | E2.2 Networks | Create/suspend/archive networks, assign Network Admins | FR NET 001–005, AC 01 |
 | E2.3 Stations | Station CRUD, location, hours, time zone, visibility, Station Admin assignment | FR ST 001–005 |
-| E2.4 EVSEs and connectors | Register EVSE with protocol and identity mapping, connectors, enable/disable | FR EVSE 001–006, AC 04 |
+| E2.4 EVSEs and connectors | Register EVSE with protocol and identity mapping, connectors (1–2 per charger: number, type, power), enable/disable, QR code per connector. Details: [../phase-2/README.md](../phase-2/README.md) | FR EVSE 001–006, AC 04 |
 | E2.5 Users and admins | Invite, activate/deactivate, role and scope assignment | App. B "Admin users" |
 | E2.6 Dashboards | Network/station/EVSE status with freshness indicators | FR MON 001, 003, 006, §13.1 |
 
@@ -39,7 +41,7 @@ Epics per spec phase. Requirement IDs refer to spec §4; acceptance criteria (AC
 |---|---|---|
 | E4.1 App foundation | React Native (proposed) app, auth, secure token storage | FR APP 001–002, §10.2 |
 | E4.2 Discovery | Map/list, filters, station details, nearby search (PostGIS) | FR APP 003–005, §8.3, AC 09 |
-| E4.3 Charging | QR/connector selection, start/stop with idempotency, live session screen | FR APP 006–007 |
+| E4.3 Charging | Scan the connector's QR code (made in E2.4), start/stop with idempotency, live session screen | FR APP 006–007 |
 | E4.4 History | Sessions, receipts, support requests | FR APP 008, FR SUP 001 |
 | E4.5 Push | Push notifications with consent | FR APP 009, FR NOT 001 |
 

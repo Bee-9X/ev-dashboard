@@ -29,7 +29,7 @@ Phase 1 started on 2026-11-21, alongside the remaining Phase 0 items (the real-c
 
 ## Next increments
 
-1. **Admin portal screens**, keeping the Phase 0 look (user's direction 2026-11-22: same design, modernized components): the charger console moves over from `plugev-portal` next. Accounts (network finance) waits for the payment work.
+1. **Admin portal screens**, keeping the Phase 0 look (user's direction 2026-11-22: same design, modernized components): the charger console moves over from `plugev-portal` next. Chargers, connectors and QR codes are planned in [../phase-2/README.md](../phase-2/README.md). Accounts (network finance) waits for the payment work.
 2. **Hosting decision** (ADR-006: Azure or AWS), then Dev/QA environments, a secrets manager and deployment from CI.
 3. Connect the gateway (`plugev-server`) to the core: charger registry in PostgreSQL, canonical events (ADR-004/007). This begins Phase 3 work.
 
