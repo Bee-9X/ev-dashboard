@@ -133,7 +133,7 @@ export const leadIcon = (Icon: typeof KeyRound) => <Icon className="lead" size={
 
 /* ---------- QR code (drawn in the browser: the secret never leaves this page) ---------- */
 
-export function QrCode({ value, label }: { value: string; label: string }) {
+export function QrCode({ value, label, className = 'qr' }: { value: string; label: string; className?: string }) {
     const [src, setSrc] = useState<string | null>(null);
     useEffect(() => {
         let active = true;
@@ -144,7 +144,7 @@ export function QrCode({ value, label }: { value: string; label: string }) {
             active = false;
         };
     }, [value]);
-    return <div className="qr">{src ? <img src={src} alt={label} /> : <span className="spinner" aria-label="Drawing QR code" />}</div>;
+    return <div className={className}>{src ? <img src={src} alt={label} /> : <span className="spinner" aria-label="Drawing QR code" />}</div>;
 }
 
 /* ---------- Copy helper ---------- */
@@ -274,7 +274,14 @@ export function TextAreaField({ label, value, onChange, hint, maxLength, require
 
 /* ---------- Modal ---------- */
 
-export function Modal({ title, onClose, children, busy }: { title: string; onClose: () => void; children: ReactNode; busy?: boolean }) {
+export function Modal({ title, onClose, children, busy, wide }: {
+    title: string;
+    onClose: () => void;
+    children: ReactNode;
+    busy?: boolean;
+    /** For longer forms. */
+    wide?: boolean;
+}) {
     const id = useId();
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !busy && onClose();
@@ -289,7 +296,7 @@ export function Modal({ title, onClose, children, busy }: { title: string; onClo
     // Rendered into <body>: a parent with backdrop-filter (the widgets) would otherwise clip a fixed-position dialog
     return createPortal(
         <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && !busy && onClose()}>
-            <div className="modal" role="dialog" aria-modal="true" aria-labelledby={id}>
+            <div className={wide ? 'modal modal-wide' : 'modal'} role="dialog" aria-modal="true" aria-labelledby={id}>
                 <div className="modal-header">
                     <h2 id={id}>{title}</h2>
                     <button type="button" className="icon-btn" aria-label="Close" onClick={onClose} disabled={busy}>

@@ -23,7 +23,11 @@ Built so far:
   - network page: profile (currency, time zone), update it, suspend / reactivate / archive (Super Admin), its stations, add a station
   - **Chargers Stations** tab: all stations you can see, filtered by network; add a station
   - station page: rename; mark inactive or active (Network Admin or Super Admin: an inactive station takes away its Station Admins' access)
-  - **Charger Terminals** comes with Phase 2 (EVSEs and connectors)
+  - station details: address, GPS location, phone, time zone, opening hours, amenities; show in or hide from the app
+  - **Charger Terminals** tab: all chargers you can see; add a charger with one or two connectors
+  - charger page: details, edit (also when the hardware is replaced), enable/disable, connectors with their QR codes,
+    add, edit or disable a connector
+  - **Print QR stickers**: one sticker per connector (`/print/chargers/:id`); warns while the links point to a test address
   - a Station Admin sees only their own stations
 - The other menu items from the old portal (Accounts, TopUp Accounts, Remote Start, My Recent Activity) are listed as "Soon"
   and move over one by one.

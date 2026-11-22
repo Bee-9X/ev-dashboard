@@ -1,0 +1,42 @@
+/* QR sticker sheet: dark on screen like the portal, plain black on white when printed. */
+.print-page { min-height: 100vh; padding: 28px 16px 48px; background: var(--bg, #1b1e3f); }
+.print-toolbar { max-width: 900px; margin: 0 auto 24px; }
+.print-toolbar h1 { margin: 4px 0 6px; font-size: 1.6rem; font-weight: 300; color: #fff; }
+
+.stickers {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 300px));
+    gap: 24px;
+    justify-content: center;
+    max-width: 900px;
+    margin: 0 auto;
+}
+.sticker {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 18px 18px 14px;
+    color: #111;
+    text-align: center;
+    background: #fff;
+    border: 2px solid #1b1e3f;
+    border-radius: 14px;
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+.sticker-logo { height: 46px; margin-bottom: 4px; }
+.sticker-call { margin: 0 0 6px; font-size: 1.15rem; font-weight: 700; letter-spacing: 0.02em; }
+.sticker-qr { width: 210px; height: 210px; display: flex; align-items: center; justify-content: center; }
+.sticker-qr img { width: 100%; height: 100%; image-rendering: pixelated; }
+.sticker-connector { margin: 8px 0 2px; font-size: 1rem; font-weight: 600; }
+.sticker-code { margin: 0; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 1.25rem; font-weight: 700; letter-spacing: 0.08em; }
+.sticker-station { margin: 4px 0 0; font-size: 0.85rem; color: #444; }
+
+@media print {
+    @page { margin: 12mm; }
+    html, body, #root, .print-page { background: #fff !important; }
+    .print-toolbar { display: none; }
+    .print-page { padding: 0; }
+    .stickers { grid-template-columns: repeat(2, 80mm); gap: 10mm; }
+    .sticker { width: 80mm; }
+}

@@ -15,6 +15,21 @@ and the networks list includes each network's station count. Station details, EV
 - A suspended or archived network, or an inactive station, takes away the access of the admins scoped to it.
 - So only Network Admins and Super Admins change a station's status (`PATCH /stations/:id`); a Station Admin can rename theirs.
 
+Stations also hold their address, GPS location, phone, local time zone, opening hours, amenities and whether the app
+shows them (spec FR ST 001, 004, 005). Showing a station in the app needs its location, and is decided by Network Admins
+and Super Admins.
+
+Chargers (EVSEs) and connectors (FR EVSE 001, 002, 004, 006): `/evses`. A charger has its OCPP identity (unique across the
+platform), protocol, make, model and serial number, and one or two connectors with type, AC/DC, power and cable or socket.
+Nothing is deleted: chargers and connectors are disabled instead. Each connector has a QR code: `QR_LINK_BASE/<code>`
+(default `PORTAL_URL/c/<code>`).
+
+**Live charger state** comes from the gateway (`plugev-server`), which posts what chargers do to `POST /gateway/events`
+with the shared `GATEWAY_API_KEY` in `X-Gateway-Key`: connected, disconnected, seen, boot (make, model, serial,
+firmware) and connector status. Events are matched to chargers by their OCPP identity, and applied so that older news
+never overwrites newer state. A charger counts as offline when nothing was reported for `CHARGER_OFFLINE_AFTER_SEC`.
+`GET /evses` and `GET /evses/:id` include it as `live` (charger) and `connectors[].live`.
+
 Stack (ADR-002, ADR-003): Node 24, NestJS 11, TypeScript, PostgreSQL, TypeORM migrations, Argon2id, pino.
 
 ## Run locally

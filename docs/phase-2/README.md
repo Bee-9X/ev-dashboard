@@ -1,17 +1,42 @@
-# Phase 2 – Administration portal (plan)
+# Phase 2 – Administration portal
 
 Reference: spec §16 (Phase 2), backlog epics E2.1–E2.6 in [../phase-0/backlog.md](../phase-0/backlog.md).
 
-Status: **planning**. Parts of Phase 2 were started early, during Phase 1, in the new admin portal (`plugev-admin`):
+Status: **in progress** (branch `phase-2-chargers`). Parts of Phase 2 were started early, during Phase 1, in the new admin portal (`plugev-admin`):
 
 | Epic | Already done | Still open |
 |---|---|---|
 | E2.1 Portal shell | Sign-in, MFA, menu in the old portal's look | Remaining menu items |
 | E2.2 Networks | Add, edit, suspend, reactivate, archive; Network Admins via User Management | Contact, address and bank details (with Accounts) |
-| E2.3 Stations | Add, rename, active/inactive; Station Admins via User Management | Location, opening hours, time zone override, visibility in the app |
-| E2.4 Chargers and connectors | — | Everything below |
+| E2.3 Stations | Add, rename, active/inactive; Station Admins via User Management; address, GPS location, phone, local time zone, opening hours, amenities; shown in or hidden from the app | Map search for the app (PostGIS, spec 8.3) comes with the app |
+| E2.4 Chargers and connectors | Register chargers with their connectors; edit, move, enable/disable; QR code per connector and a printable sticker sheet | Live state (online, last seen, faults: FR EVSE 003) comes from the gateway in Phase 3; device configuration (FR EVSE 005) too |
 | E2.5 Users and admins | Done in Phase 1 | — |
 | E2.6 Dashboards | — | Status per network, station and charger |
+
+## Live charger status (start of Phase 3)
+
+The gateway (`plugev-server`) now reports what chargers do to the platform (backlog E3.4, canonical events per
+ADR-004/007). The charger page shows:
+
+- online or offline, when it was last heard from, since when, and why it went offline;
+- what the charger reports at boot (make, model, serial number, firmware; the firmware is stored on the charger);
+- the status of the charger and of each connector (Available, Occupied, Charging, Faulted and so on), refreshed every
+  15 seconds; while offline, only as the last known status;
+- warnings when the charger connects with a different protocol than registered, reports another serial number, or
+  reports a connector that is not registered.
+
+The terminals tables show each charger's connection. Sessions, meter values and remote commands through the platform
+come next (E3.5, E3.6); until then the charger console stays in use for those.
+
+To turn the link on, set the same key in both apps (at least 32 characters):
+
+| App | Setting |
+|---|---|
+| `plugev-api/.env` | `GATEWAY_API_KEY=<key>` |
+| `plugev-server/.env` | `PLATFORM_API_URL=http://localhost:4000/api/v1` and `PLATFORM_GATEWAY_KEY=<key>` |
+
+Restart both. The gateway logs `Platform link on`, and warns once for each charger that is not registered in the
+admin portal.
 
 ## How the pieces fit
 
@@ -34,6 +59,10 @@ Names for the charger level:
 All three mean the same machine. The portal tab keeps the old name, **Charger Terminals**.
 
 ## E2.4 Chargers and connectors
+
+Built as planned below. API: `GET/POST /evses`, `GET/PATCH /evses/{id}`, `GET/POST /evses/{id}/connectors`,
+`PATCH /evses/{id}/connectors/{connectorId}` (spec 9.2). Portal: the **Charger Terminals** tab, the chargers on each
+station page, a page per charger, and **Print QR stickers**.
 
 ### Charger (EVSE)
 
@@ -87,6 +116,18 @@ How it will work: the driver scans the QR code on the charger with the app, then
 5. **Charge and stop.** The session is recorded against the connector, and so counts for its charger, station and network. The driver stops in the app, or the car finishes, or they unplug.
 
 The codes are made in **Phase 2**, when a charger is registered, so they can be printed and stuck on before the app exists. The scanning itself is **Phase 4**.
+
+### What was built
+
+- **One QR code per connector.** The code is the charger's six-character public code plus the connector number,
+  for example `K7M3QX-1`. The public code is random, avoids look-alike characters (no 0/O, 1/I), and never changes.
+- **The link** is `QR_LINK_BASE` + `/` + code, for example `https://<domain>/c/K7M3QX-1`. Until `QR_LINK_BASE` is set,
+  it defaults to the portal address + `/c`. The sticker page warns when the links point to a test address.
+- **Replacing a charger:** edit its Charger ID (OCPP identity) and serial number. The stickers stay valid.
+- **The sticker:** PLUG EV logo, "Scan to charge", the QR code, "Connector 1 · CCS2 · DC 60 kW", the code in large
+  letters for typing in, and the station name. Two stickers per row on A4.
+
+Nothing in the app reads the link yet; that is Phase 4.
 
 ### Decisions to make before printing any stickers
 

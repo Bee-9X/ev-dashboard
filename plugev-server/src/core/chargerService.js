@@ -3,6 +3,7 @@ const ConnectionEvent = require('../models/ConnectionEvent');
 const config = require('../config');
 const registry = require('./registry');
 const logger = require('../logger');
+const platformLink = require('./platformLink');
 
 const PROTOCOL_LABELS = {
     'ocpp1.5-soap': '1.5 SOAP',
@@ -48,6 +49,7 @@ async function touch(identity, { protocol, ip, endpoint } = {}) {
                 ...set,
             });
             recordEvent({ chargerIdentity: identity, event: 'Connected', protocol, reason: 'first contact' });
+            platformLink.emit('connected', identity, { protocol });
             logger.info(`[${identity}] New unregistered charger (${protocol})`);
             return true;
         } catch (err) {
@@ -63,8 +65,10 @@ async function touch(identity, { protocol, ip, endpoint } = {}) {
             : undefined;
         await Charger.updateOne({ identity }, { $set: { connectedAt: now } });
         recordEvent({ chargerIdentity: identity, event: 'Connected', protocol, offlineDurationSec });
+        platformLink.emit('connected', identity, { protocol });
         logger.info(`[${identity}] Online (${protocol})` + (offlineDurationSec ? ` after ${offlineDurationSec}s` : ''));
     }
+    platformLink.seen(identity, protocol);
     return true;
 }
 
@@ -75,6 +79,7 @@ async function markOffline(identity, reason) {
     );
     if (res.modifiedCount > 0) {
         recordEvent({ chargerIdentity: identity, event: 'Disconnected', reason });
+        platformLink.emit('disconnected', identity, { reason });
         logger.info(`[${identity}] Offline (${reason})`);
     }
 }

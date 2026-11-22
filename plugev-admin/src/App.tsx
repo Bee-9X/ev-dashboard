@@ -11,6 +11,8 @@ import { SetPasswordPage } from './pages/auth/SetPasswordPage';
 import { NetworkDetailPage } from './pages/stations/NetworkDetailPage';
 import { StationDetailPage } from './pages/stations/StationDetailPage';
 import { StationsPage } from './pages/stations/StationsPage';
+import { ChargerDetailPage } from './pages/stations/chargers/ChargerDetailPage';
+import { QrPrintPage } from './pages/stations/chargers/QrPrintPage';
 import { UserDetailPage } from './pages/users/UserDetailPage';
 import { UsersPage } from './pages/users/UsersPage';
 
@@ -71,6 +73,17 @@ export function App() {
             {/* Links in the emails sent by plugev-api */}
             <Route path="/reset-password" element={<SetPasswordPage mode="reset" />} />
             <Route path="/accept-invite" element={<SetPasswordPage mode="invite" />} />
+            {/* QR stickers: a printable sheet without the portal layout */}
+            <Route
+                path="/print/chargers/:evseId"
+                element={
+                    <SessionGate>
+                        <RequirePermission permission="evse.read">
+                            <QrPrintPage />
+                        </RequirePermission>
+                    </SessionGate>
+                }
+            />
             <Route
                 element={
                     <SessionGate>
@@ -86,6 +99,10 @@ export function App() {
                 <Route
                     path="stations/networks/:networkId"
                     element={<RequirePermission permission="network.read"><NetworkDetailPage /></RequirePermission>}
+                />
+                <Route
+                    path="stations/chargers/:evseId"
+                    element={<RequirePermission permission="evse.read"><ChargerDetailPage /></RequirePermission>}
                 />
                 <Route path="stations/:stationId" element={<RequirePermission permission="station.read"><StationDetailPage /></RequirePermission>} />
                 <Route path="*" element={<NotFoundPage />} />

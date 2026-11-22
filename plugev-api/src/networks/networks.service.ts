@@ -11,6 +11,10 @@ import { CreateNetworkDto, CreateStationDto, StationListQueryDto, UpdateNetworkD
 /** A network as listed: with the number of its stations (all of them, for the network's own admins and Super Admins). */
 export type NetworkWithCount = NetworkEntity & { stationCount: number };
 
+const STATION_FIELDS = [
+    'name', 'status', 'address', 'phone', 'latitude', 'longitude', 'timeZone', 'operatingHours', 'amenities', 'publicVisible',
+] as const;
+
 const isUniqueViolation = (e: unknown) => e instanceof QueryFailedError && (e as { code?: string }).code === '23505';
 
 /**
@@ -145,23 +149,36 @@ export class NetworksService {
         if (!ctx.canOnStation(P.STATION_UPDATE, station.id, station.networkId)) throw Errors.forbidden();
         const network = await this.db.getRepository(NetworkEntity).findOneByOrFail({ id: station.networkId });
         if (network.status === 'archived') throw Errors.conflict('Stations of an archived network cannot be changed', 'NETWORK_ARCHIVED');
-        // Station Admins lose access to an inactive station, so only network-level admins change its status
-        if (dto.status !== undefined && dto.status !== station.status && !ctx.canOnNetwork(P.STATION_UPDATE, station.networkId)) {
-            throw Errors.forbidden('Only a Network Admin or Super Admin can change the status of a station');
-        }
 
         const changes: Record<string, { from: unknown; to: unknown }> = {};
-        for (const key of ['name', 'status'] as const) {
-            if (dto[key] !== undefined && dto[key] !== station[key]) changes[key] = { from: station[key], to: dto[key] };
+        for (const key of STATION_FIELDS) {
+            const to = dto[key];
+            if (to !== undefined && JSON.stringify(to) !== JSON.stringify(station[key])) changes[key] = { from: station[key], to };
         }
         if (!Object.keys(changes).length) return station;
+
+        // Station Admins lose access to an inactive station, and going public is the network's decision,
+        // so only network-level admins change status or visibility (FR ST 004)
+        if ((changes.status || changes.publicVisible) && !ctx.canOnNetwork(P.STATION_UPDATE, station.networkId)) {
+            throw Errors.forbidden('Only a Network Admin or Super Admin can change the status or app visibility of a station');
+        }
+        const latitude = 'latitude' in changes ? dto.latitude ?? null : station.latitude;
+        const longitude = 'longitude' in changes ? dto.longitude ?? null : station.longitude;
+        if ((latitude === null) !== (longitude === null)) {
+            throw Errors.badRequest('VALIDATION_FAILED', 'Latitude and longitude must be set together');
+        }
+        const publicVisible = dto.publicVisible ?? station.publicVisible;
+        if (publicVisible && latitude === null) {
+            throw Errors.conflict('Add the station location before showing it in the app', 'LOCATION_REQUIRED');
+        }
 
         try {
             return await this.db.transaction(async m => {
                 Object.assign(station, Object.fromEntries(Object.entries(changes).map(([k, v]) => [k, v.to])));
                 const saved = await m.getRepository(StationEntity).save(station);
                 await this.audit.record({
-                    actor: ctx, action: changes.status ? 'station.status_change' : 'station.update',
+                    actor: ctx,
+                    action: changes.status ? 'station.status_change' : changes.publicVisible ? 'station.visibility_change' : 'station.update',
                     resourceType: 'station', resourceId: id, networkId: station.networkId, stationId: id, details: { changes },
                 }, m);
                 return saved;

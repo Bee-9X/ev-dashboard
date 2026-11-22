@@ -40,7 +40,8 @@ describe('Charging networks', () => {
         renderApp('/stations');
         expect(await screen.findByRole('heading', { name: 'Charging Station Details' })).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: 'Charging Networks' })).toHaveAttribute('aria-selected', 'true');
-        expect(screen.getByRole('tab', { name: /Charger Terminals/ })).toBeDisabled();
+        // the terminals tab needs evse.read, which this user lacks
+        expect(screen.queryByRole('tab', { name: /Charger Terminals/ })).not.toBeInTheDocument();
         const row = (await screen.findByRole('link', { name: 'Plug EV Colombo' })).closest('tr')!;
         expect(within(row).getByText('1')).toBeInTheDocument();
         expect(within(row).getByText('Asia/Colombo')).toBeInTheDocument();

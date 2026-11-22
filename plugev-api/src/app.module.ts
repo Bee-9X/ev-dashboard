@@ -17,6 +17,8 @@ import { buildDataSourceOptions } from './database/options';
 import { HealthController } from './health/health.controller';
 import { MailModule } from './mail/mail.module';
 import { NetworksModule } from './networks/networks.module';
+import { EvsesModule } from './evses/evses.module';
+import { GatewayModule } from './gateway/gateway.module';
 import { UsersModule } from './users/users.module';
 
 export const JWT_ISSUER = 'plugev-api';
@@ -73,6 +75,8 @@ export const JWT_AUDIENCE = 'plugev';
         AuthModule,
         UsersModule,
         NetworksModule,
+        EvsesModule,
+        GatewayModule,
     ],
     controllers: [HealthController],
     providers: [
