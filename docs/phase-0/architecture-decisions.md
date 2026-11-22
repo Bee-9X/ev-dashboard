@@ -86,6 +86,10 @@ The spec needs role-aware navigation, tenant scoping and many new screens.
 
 ## ADR-006 – Hosting, secrets and environments
 
+**Status (2026-11-22): Narrowed to Azure or AWS; not decided.** Neither has a Sri Lanka region; the nearest are AWS Mumbai (ap-south-1) and Azure Central/South India. Data residency (spec 11.2) must be confirmed before choosing. Until then the services stay cloud-neutral: configuration by environment variables, container images, managed PostgreSQL. Either cloud works without code changes.
+
+Email provider: not chosen. The API will send through SMTP, so Amazon SES, Azure Communication Services Email or a third-party service can each be plugged in by configuration.
+
 **Context.** The PoC runs on a laptop behind ngrok (URL changes on restart, no TLS for chargers using `http://`). Credentials were committed to git.
 
 **Decision (proposed).**

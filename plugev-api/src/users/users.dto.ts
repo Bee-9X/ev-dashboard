@@ -75,6 +75,7 @@ export interface UserView {
     fullName: string;
     phone: string | null;
     status: string;
+    mfaEnabled: boolean;
     lastLoginAt: string | null;
     createdAt: string;
     roles: RoleAssignmentView[];
@@ -82,4 +83,12 @@ export interface UserView {
 
 export interface MeView extends UserView {
     permissions: string[];
+    /** True when a role requires MFA; the portal should push setup if mfaEnabled is false. */
+    mfaRequired: boolean;
+}
+
+export class ResetMfaDto {
+    @ApiProperty({ description: 'Why the reset is done (e.g. lost phone); kept in the audit log' })
+    @Transform(trim) @IsString() @IsNotEmpty() @MaxLength(500)
+    reason: string;
 }

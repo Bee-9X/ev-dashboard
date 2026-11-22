@@ -11,6 +11,17 @@ import { AuthTokenEntity, AuthTokenPurpose, RefreshTokenEntity, UserEntity } fro
 import { LoginEventsService } from './login-events.service';
 import { newSecretToken, parseSecretToken, secretMatches } from './secret-token';
 
+export type MfaTokenPurpose = 'challenge' | 'enroll';
+
+interface MfaTokenPayload {
+    sub: string;
+    typ: 'mfa';
+    purpose: MfaTokenPurpose;
+}
+
+/** Lifetime of the token that links the password step to the MFA step. */
+export const MFA_TOKEN_TTL_SEC = 300;
+
 export interface IssuedRefreshToken {
     id: string;
     token: string;
@@ -35,6 +46,25 @@ export class TokensService {
     async issueAccessToken(userId: string): Promise<{ accessToken: string; expiresIn: number }> {
         const payload: AccessTokenPayload = { sub: userId, typ: 'access' };
         return { accessToken: await this.jwt.signAsync(payload), expiresIn: this.config.accessTokenTtlSec };
+    }
+
+    /**
+     * Proves the password step succeeded. It is not an access token (the guard only accepts typ "access"),
+     * so it can only be exchanged at the MFA endpoints.
+     */
+    async issueMfaToken(userId: string, purpose: MfaTokenPurpose): Promise<string> {
+        const payload: MfaTokenPayload = { sub: userId, typ: 'mfa', purpose };
+        return this.jwt.signAsync(payload, { expiresIn: MFA_TOKEN_TTL_SEC });
+    }
+
+    async verifyMfaToken(token: string, purpose: MfaTokenPurpose): Promise<string> {
+        try {
+            const p = await this.jwt.verifyAsync<MfaTokenPayload>(token);
+            if (p.typ === 'mfa' && p.purpose === purpose && typeof p.sub === 'string') return p.sub;
+        } catch {
+            // fall through
+        }
+        throw Errors.unauthenticated('The sign-in step has expired. Sign in again.', 'MFA_TOKEN_INVALID');
     }
 
     async issueRefreshToken(userId: string, familyId: string = randomUUID(), manager: EntityManager = this.db.manager): Promise<IssuedRefreshToken> {

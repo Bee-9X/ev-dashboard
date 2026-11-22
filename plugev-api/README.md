@@ -3,12 +3,13 @@
 Phase 1 foundation of the platform described in the technical specification:
 
 - **Identity**: login, refresh-token rotation, logout, password reset, invitations, account status, lockout, login event log (FR AUTH 001, 002, 004, 005, 006).
+- **MFA** (FR AUTH 003): authenticator-app codes (TOTP), recovery codes, MFA required per role.
 - **Authorization**: RBAC with network and station scope, resolved on the server and deny by default (spec 2.2, 3).
 - **Audit**: append-only audit log, enforced by the database (spec 3.2, 11.3).
 - **API standards**: `/api/v1`, OpenAPI, one error format, correlation IDs, pagination (spec 9).
 - **Ops**: health and readiness probes, structured JSON logs (spec 13.2).
 
-Networks and stations exist only so tenants and station scope can be tested. Full station, EVSE and connector management is Phase 2. MFA (FR AUTH 003) is the next Phase 1 increment.
+Networks and stations exist only so tenants and station scope can be tested. Full station, EVSE and connector management is Phase 2.
 
 Stack (ADR-002, ADR-003): Node 24, NestJS 11, TypeScript, PostgreSQL, TypeORM migrations, Argon2id, pino.
 
@@ -25,7 +26,8 @@ cp .env.example .env
 1. Create a database, e.g. in pgAdmin or `psql`: `CREATE DATABASE plugev;`
 2. In `.env`:
    - set `DATABASE_URL`;
-   - set `JWT_ACCESS_SECRET` (generate one with `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"`).
+   - set `JWT_ACCESS_SECRET` (generate one with `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"`);
+   - set `MFA_ENCRYPTION_KEY` (generate one with `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`).
 3. Create the first Super Admin. The command asks for the password, so it is not saved in shell history:
    ```bash
    npm run seed:super-admin -- --email you@example.com --name "Your Name"
@@ -58,13 +60,35 @@ Typical first steps as Super Admin:
 
 Email delivery is not configured yet (spec 17). Outside production, invitation and reset links are written to the API log.
 
+## MFA
+
+Super Admin and Network Admin **must** use MFA. Station Admins can turn it on themselves. A Super Admin can change which roles require it (`PATCH /roles/{code}`).
+
+Sign-in with MFA is two steps:
+
+| Login response `status` | Next call |
+|---|---|
+| `authenticated` | Done: tokens are in the response |
+| `mfa_required` | `POST /auth/mfa/verify` with `mfaToken` and a 6-digit `code` (or one `recoveryCode`) |
+| `mfa_enrollment_required` | The role requires MFA and none is set up: `POST /auth/mfa/enroll` (returns a secret and an `otpauth://` URL to show as a QR code), then `POST /auth/mfa/enroll/confirm` with a code. The response holds the tokens and **10 recovery codes, shown once** |
+
+The `mfaToken` is valid for 5 minutes and only at these endpoints.
+
+Other MFA behaviour:
+- **First sign-in:** the first Super Admin is asked to set up MFA. Have an authenticator app ready (Google or Microsoft Authenticator, Authy, 1Password, ...).
+- **Code reuse:** each code works once.
+- **Lockout:** wrong codes count towards the same 5-attempt lockout as wrong passwords.
+- **Stored secrets:** encrypted with `MFA_ENCRYPTION_KEY`. Losing or changing that key means everyone must set up MFA again.
+- **Self-service:** `GET/POST/DELETE /users/me/mfa…` to check status, set up, regenerate recovery codes, or turn MFA off when no role requires it.
+- **Lost phone:** another administrator calls `POST /users/{id}/mfa/reset` with a reason. This ends the user's sessions, and they set MFA up again at the next sign-in.
+
 ## Tests
 
 ```bash
 npm test
 ```
 
-- 57 tests: unit tests, plus end-to-end tests against a real PostgreSQL.
+- 93 tests: unit tests, plus end-to-end tests against a real PostgreSQL.
 - Locally a throwaway PostgreSQL is downloaded and started automatically (embedded-postgres). No setup is needed and your own database is not touched.
 - Set `TEST_DATABASE_URL` to use an existing empty database instead; CI does this.
 
@@ -101,7 +125,7 @@ Every response carries `X-Correlation-Id`. Clients may send their own; it is use
 ```
 src/
   access/     permission catalogue, AccessContext (scope), global AccessGuard, decorators
-  auth/       login, tokens (JWT access + rotating refresh), password reset/invite, login events
+  auth/       login, tokens (JWT access + rotating refresh), MFA (TOTP, recovery codes), password reset/invite, login events
   users/      invite, roles, status
   networks/   networks + minimal stations
   audit/      append-only audit service and query endpoint

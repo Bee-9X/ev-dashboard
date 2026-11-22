@@ -3,6 +3,7 @@ import { DataSource, EntityManager, IsNull } from 'typeorm';
 import type { AccessContext } from '../access/access-context';
 import { P, ROLES } from '../access/permissions';
 import { AuditService } from '../audit/audit.service';
+import { MfaService } from '../auth/mfa.service';
 import { TokensService } from '../auth/tokens.service';
 import { Errors } from '../common/errors';
 import { Page, toPage } from '../common/pagination';
@@ -10,7 +11,7 @@ import { APP_CONFIG, AppConfig } from '../config/config';
 import { NetworkEntity, RoleAssignmentEntity, StationEntity, UserEntity } from '../database/entities';
 import { MailService } from '../mail/mail.service';
 import {
-    InviteUserDto, MeView, RoleAssignmentView, RoleTargetDto, UpdateUserStatusDto, UserListQueryDto, UserView,
+    InviteUserDto, MeView, ResetMfaDto, RoleAssignmentView, RoleTargetDto, UpdateUserStatusDto, UserListQueryDto, UserView,
 } from './users.dto';
 
 interface ResolvedTarget {
@@ -30,11 +31,12 @@ export class UsersService {
         private readonly audit: AuditService,
         private readonly tokens: TokensService,
         private readonly mail: MailService,
+        private readonly mfa: MfaService,
     ) {}
 
     async me(ctx: AccessContext): Promise<MeView> {
         const user = await this.db.getRepository(UserEntity).findOneByOrFail({ id: ctx.userId });
-        return { ...(await this.view(user)), permissions: ctx.permissions };
+        return { ...(await this.view(user)), permissions: ctx.permissions, mfaRequired: await this.mfa.isRequired(user.id) };
     }
 
     async list(ctx: AccessContext, q: UserListQueryDto): Promise<Page<UserView>> {
@@ -146,6 +148,19 @@ export class UsersService {
             }, m);
         });
         user.status = dto.status;
+        return this.view(user);
+    }
+
+    /** Removes a user's MFA (lost device). Same management rules as status changes. */
+    async resetMfa(ctx: AccessContext, userId: string, dto: ResetMfaDto): Promise<UserView> {
+        if (userId === ctx.userId) {
+            throw Errors.badRequest('CANNOT_CHANGE_OWN_ACCESS', 'Use your recovery codes, or ask another administrator to reset your MFA');
+        }
+        const user = await this.findVisible(ctx, userId, P.USER_READ);
+        await this.assertCanManage(ctx, user.id);
+        if (!user.mfaEnabled) throw Errors.conflict('MFA is not enabled for this user', 'MFA_NOT_ENABLED');
+        await this.mfa.reset(ctx, user.id, dto.reason);
+        user.mfaEnabled = false;
         return this.view(user);
     }
 
@@ -276,6 +291,7 @@ export class UsersService {
             fullName: u.fullName,
             phone: u.phone,
             status: u.status,
+            mfaEnabled: u.mfaEnabled,
             lastLoginAt: u.lastLoginAt ? u.lastLoginAt.toISOString() : null,
             createdAt: u.createdAt.toISOString(),
             roles: assignments.filter(a => a.userId === u.id).map((a): RoleAssignmentView => ({

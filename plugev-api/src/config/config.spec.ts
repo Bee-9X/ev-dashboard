@@ -1,6 +1,10 @@
 import { loadConfig } from './config';
 
-const base = { DATABASE_URL: 'postgres://u:p@localhost/db', JWT_ACCESS_SECRET: 'x'.repeat(32) };
+const base = {
+    DATABASE_URL: 'postgres://u:p@localhost/db',
+    JWT_ACCESS_SECRET: 'x'.repeat(32),
+    MFA_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
+};
 
 describe('loadConfig', () => {
     it('applies defaults', () => {

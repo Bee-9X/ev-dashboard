@@ -2,8 +2,10 @@ import { Body, Controller, HttpCode, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Public } from '../access/decorators';
 import {
-    LoginDto, LoginResponse, PasswordResetConfirmDto, PasswordResetRequestDto, RefreshDto, TokenResponse,
+    EnrolledLoginResponse, LoginDto, LoginResponse, MfaEnrollConfirmDto, MfaPendingResponse, MfaTokenDto, MfaVerifyDto,
+    PasswordResetConfirmDto, PasswordResetRequestDto, RefreshDto, TokenResponse,
 } from './auth.dto';
+import { MfaSetup } from './mfa.service';
 import { AuthService } from './auth.service';
 import { AuthRateLimited } from './rate-limit';
 
@@ -16,8 +18,32 @@ export class AuthController {
     @Post('login')
     @HttpCode(200)
     @AuthRateLimited()
-    login(@Body() dto: LoginDto): Promise<LoginResponse> {
+    login(@Body() dto: LoginDto): Promise<LoginResponse | MfaPendingResponse> {
         return this.auth.login(dto.email, dto.password);
+    }
+
+    /** Second step for users with MFA: a code from the authenticator app, or one recovery code. */
+    @Post('mfa/verify')
+    @HttpCode(200)
+    @AuthRateLimited()
+    verifyMfa(@Body() dto: MfaVerifyDto): Promise<LoginResponse> {
+        return this.auth.verifyMfa(dto.mfaToken, dto.code, dto.recoveryCode);
+    }
+
+    /** First login where the role requires MFA: returns a secret / otpauth URL to scan. */
+    @Post('mfa/enroll')
+    @HttpCode(200)
+    @AuthRateLimited()
+    startEnrollment(@Body() dto: MfaTokenDto): Promise<MfaSetup> {
+        return this.auth.startEnrollment(dto.mfaToken);
+    }
+
+    /** Confirms the authenticator with a code, signs in and returns recovery codes (shown once). */
+    @Post('mfa/enroll/confirm')
+    @HttpCode(200)
+    @AuthRateLimited()
+    confirmEnrollment(@Body() dto: MfaEnrollConfirmDto): Promise<EnrolledLoginResponse> {
+        return this.auth.confirmEnrollment(dto.mfaToken, dto.code);
     }
 
     /** Rotates the refresh token: the old one stops working, a new pair is returned. */

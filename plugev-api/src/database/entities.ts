@@ -46,6 +46,11 @@ export class UserEntity {
     @Column({ name: 'locked_until', type: 'timestamptz', nullable: true }) lockedUntil: Date | null;
     @Column({ name: 'last_login_at', type: 'timestamptz', nullable: true }) lastLoginAt: Date | null;
     @Column({ name: 'password_changed_at', type: 'timestamptz', nullable: true }) passwordChangedAt: Date | null;
+    @Column({ name: 'mfa_enabled', type: 'boolean', default: false }) mfaEnabled: boolean;
+    @Column({ name: 'mfa_secret_encrypted', type: 'text', nullable: true, select: false }) mfaSecretEncrypted: string | null;
+    @Column({ name: 'mfa_pending_secret_encrypted', type: 'text', nullable: true, select: false }) mfaPendingSecretEncrypted: string | null;
+    @Column({ name: 'mfa_last_used_step', type: 'bigint', nullable: true, select: false }) mfaLastUsedStep: string | null;
+    @Column({ name: 'mfa_enabled_at', type: 'timestamptz', nullable: true }) mfaEnabledAt: Date | null;
     @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date;
     @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date;
 }
@@ -57,6 +62,7 @@ export class RoleEntity {
     @PrimaryColumn() code: string;
     @Column() name: string;
     @Column({ name: 'scope_type', type: 'text' }) scopeType: RoleScope;
+    @Column({ name: 'mfa_required', type: 'boolean', default: false }) mfaRequired: boolean;
     @Column({ type: 'text' }) description: string;
 }
 
@@ -109,7 +115,9 @@ export class AuthTokenEntity {
 
 export type LoginEventType =
     | 'login_succeeded' | 'login_failed' | 'account_locked' | 'logout' | 'token_refreshed'
-    | 'refresh_token_reuse' | 'password_reset_requested' | 'password_reset_completed' | 'invite_accepted';
+    | 'refresh_token_reuse' | 'password_reset_requested' | 'password_reset_completed' | 'invite_accepted'
+    | 'mfa_challenge_issued' | 'mfa_failed' | 'mfa_enabled' | 'mfa_disabled' | 'mfa_reset'
+    | 'mfa_recovery_code_used' | 'mfa_recovery_codes_regenerated';
 
 @Entity('login_events')
 export class LoginEventEntity {
@@ -143,7 +151,16 @@ export class AuditLogEntity {
     @Column({ type: 'jsonb', default: () => "'{}'" }) details: Record<string, unknown>;
 }
 
+@Entity('mfa_recovery_codes')
+export class MfaRecoveryCodeEntity {
+    @PrimaryGeneratedColumn('uuid') id: string;
+    @Column({ name: 'user_id', type: 'uuid' }) userId: string;
+    @Column({ name: 'code_hash' }) codeHash: string;
+    @Column({ name: 'used_at', type: 'timestamptz', nullable: true }) usedAt: Date | null;
+    @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date;
+}
+
 export const ENTITIES = [
     NetworkEntity, StationEntity, UserEntity, RoleEntity, PermissionEntity, RoleAssignmentEntity,
-    RefreshTokenEntity, AuthTokenEntity, LoginEventEntity, AuditLogEntity,
+    RefreshTokenEntity, AuthTokenEntity, LoginEventEntity, AuditLogEntity, MfaRecoveryCodeEntity,
 ];
