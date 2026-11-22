@@ -12,13 +12,13 @@ Phase 1 started on 2026-11-21, alongside the remaining Phase 0 items (the real-c
 | New backend in this repository: `plugev-api/` | **Accepted** 2026-11-21 |
 | NestJS + TypeScript (ADR-003) | Used as proposed (NestJS 11; see ADR-003 note) |
 | Hosting provider (ADR-006) | **Azure or AWS**, not decided. Code stays cloud-neutral; runs locally, with CI on GitHub Actions |
-| Email provider | **Open**. API sends via SMTP so any provider fits |
+| Email provider | **Open**. Emails are logged for now (`MAIL_TRANSPORT=log`); SMTP is built in, so any provider is a configuration change |
 
 ## Progress
 
 | Epic | Scope | Status |
 |---|---|---|
-| E1.1 Environments and CI/CD | GitHub Actions: tests and dependency audit for all three apps on every PR | 🟡 CI done. Environments wait for the hosting decision |
+| E1.1 Environments and CI/CD | GitHub Actions: tests and dependency audit for all three apps on every PR; Docker images for all three apps, built and smoke-tested with docker compose in CI | 🟡 CI and images done. Environments wait for the hosting decision |
 | E1.2 Database and migrations | PostgreSQL schema: networks, stations, users, roles, permissions, assignments, tokens, login events, audit; versioned migrations | ✅ |
 | E1.3 Identity | Login, refresh rotation with reuse detection, logout, reset, invitations, lockout, account status, login events, **MFA** (TOTP, recovery codes, required per role, admin reset) | ✅ |
 | E1.4 Authorization | RBAC, network/station scope from the token's user, deny by default, 404 outside scope | ✅ |
@@ -28,10 +28,9 @@ Phase 1 started on 2026-11-21, alongside the remaining Phase 0 items (the real-c
 
 ## Next increments
 
-1. **SMTP email and Docker images**, so the API fits either cloud (ADR-006) and any email provider.
-2. **New portal with a modern UI** (ADR-005), signing in against `plugev-api` (including MFA). It replaces the outdated template look and its hard-coded login.
-3. **Hosting decision** (ADR-006: Azure or AWS), then Dev/QA environments, a secrets manager and deployment from CI.
-4. Connect the gateway (`plugev-server`) to the core: charger registry in PostgreSQL, canonical events (ADR-004/007). This begins Phase 3 work.
+1. **New portal with a modern UI** (ADR-005), signing in against `plugev-api` (including MFA). It replaces the outdated template look and its hard-coded login.
+2. **Hosting decision** (ADR-006: Azure or AWS), then Dev/QA environments, a secrets manager and deployment from CI.
+3. Connect the gateway (`plugev-server`) to the core: charger registry in PostgreSQL, canonical events (ADR-004/007). This begins Phase 3 work.
 
 ## How to run
 

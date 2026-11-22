@@ -1,0 +1,90 @@
+# Whole platform on one machine (development, demos, and the CI smoke test).
+#
+#   cp compose.env.example .env      # then fill in the secrets
+#   docker compose up -d --build
+#
+#   portal   http://localhost:8080
+#   API      http://localhost:4000/api/v1   (docs: http://localhost:4000/api/docs)
+#   gateway  http://localhost:3003          (OCPP chargers and the Phase 0 console)
+#
+# Production uses the same images with managed PostgreSQL/MongoDB and a secrets manager (ADR-006).
+
+name: plugev
+
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: plugev
+      POSTGRES_USER: plugev
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U plugev -d plugev"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  mongo:
+    image: mongo:8
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build: ./plugev-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgres://plugev:${POSTGRES_PASSWORD}@postgres:5432/plugev
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set JWT_ACCESS_SECRET in .env}
+      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:?set MFA_ENCRYPTION_KEY in .env}
+      CORS_ORIGINS: ${PORTAL_URL:-http://localhost:8080}
+      PORTAL_URL: ${PORTAL_URL:-http://localhost:8080}
+      MAIL_TRANSPORT: ${MAIL_TRANSPORT:-log}
+      MAIL_FROM: ${MAIL_FROM:-PLUG EV <no-reply@plugev.local>}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "4000:4000"
+
+  gateway:
+    build: ./plugev-server
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/plugev
+      API_KEY: ${GATEWAY_API_KEY:-}
+      CORS_ORIGINS: ${PORTAL_URL:-http://localhost:8080}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "3003:3003"
+      - "3002:3002"
+
+  portal:
+    build:
+      context: ./plugev-portal
+      args:
+        # Read by the browser, so it must be an address the browser can reach.
+        REACT_APP_API_URL: ${GATEWAY_PUBLIC_URL:-http://localhost:3003}
+        REACT_APP_API_KEY: ${GATEWAY_API_KEY:-}
+    depends_on:
+      - gateway
+    ports:
+      - "8080:8080"
+
+volumes:
+  postgres-data:
+  mongo-data:

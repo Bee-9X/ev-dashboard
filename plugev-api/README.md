@@ -58,7 +58,23 @@ Typical first steps as Super Admin:
 2. `POST /stations`
 3. `POST /users` to invite a Network Admin.
 
-Email delivery is not configured yet (spec 17). Outside production, invitation and reset links are written to the API log.
+## Email
+
+No email provider is chosen yet, so `MAIL_TRANSPORT=log` (the default) writes each email to the API log instead of sending it: subject, recipient and the full text, **links included**. To complete an invitation or password reset during development, copy the link from the log line `Email not sent (MAIL_TRANSPORT=log)`.
+
+When a provider is chosen, set `MAIL_TRANSPORT=smtp` and the `SMTP_*` settings (see `.env.example`); no code change is needed:
+
+| Provider | SMTP_HOST (example) | Port |
+|---|---|---|
+| Amazon SES | `email-smtp.ap-south-1.amazonaws.com` | 587 |
+| Azure Communication Services | `smtp.azurecomm.net` | 587 |
+| SendGrid | `smtp.sendgrid.net` | 587 |
+| Microsoft 365 | `smtp.office365.com` | 587 |
+
+How sending behaves:
+- **Startup check:** the API checks the SMTP login at startup and logs the result.
+- **Failures:** a failed delivery is logged but does not fail the request.
+- **Production warning:** the log transport prints a warning at startup in production, because reset links in logs are sensitive.
 
 ## MFA
 
@@ -82,13 +98,27 @@ Other MFA behaviour:
 - **Self-service:** `GET/POST/DELETE /users/me/mfa…` to check status, set up, regenerate recovery codes, or turn MFA off when no role requires it.
 - **Lost phone:** another administrator calls `POST /users/{id}/mfa/reset` with a reason. This ends the user's sessions, and they set MFA up again at the next sign-in.
 
+## Docker
+
+`plugev-api/Dockerfile` builds a small production image:
+- the compiled app and production packages only;
+- runs as a non-root user;
+- has a health check;
+- takes its configuration from environment variables only, so the same image runs on Azure or AWS.
+
+To run the whole platform locally (API, gateway, portal, PostgreSQL, MongoDB), see `docker-compose.yml` at the repository root. Create the first Super Admin in the container with:
+
+```bash
+docker compose exec -it api node dist/cli/create-super-admin.js --email you@example.com --name "Your Name"
+```
+
 ## Tests
 
 ```bash
 npm test
 ```
 
-- 93 tests: unit tests, plus end-to-end tests against a real PostgreSQL.
+- 99 tests: unit tests, plus end-to-end tests against a real PostgreSQL.
 - Locally a throwaway PostgreSQL is downloaded and started automatically (embedded-postgres). No setup is needed and your own database is not touched.
 - Set `TEST_DATABASE_URL` to use an existing empty database instead; CI does this.
 

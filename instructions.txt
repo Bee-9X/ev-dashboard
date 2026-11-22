@@ -6,6 +6,13 @@ The repository has three apps:
   plugev-server  charger gateway (OCPP 1.5/1.6 SOAP and 1.6J) - Phase 0 PoC, MongoDB
   plugev-portal  admin portal (Phase 0 template + charger test console)
 
+Run everything with Docker (needs Docker Desktop):
+  copy compose.env.example to .env, fill in the three secrets, then:
+    docker compose up -d --build
+  portal http://localhost:8080 | API http://localhost:4000/api/docs | gateway http://localhost:3003
+  Emails (invitations, password resets) are not sent yet: find the links with
+    docker compose logs api
+
 
 Server SOAP (Back end / charger gateway)
 
