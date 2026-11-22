@@ -1,4 +1,5 @@
 import { useEffect, useId, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import QRCode from 'qrcode';
 import { AlertCircle, CheckCircle2, Copy, Download, Eye, EyeOff, Info, KeyRound, TriangleAlert } from 'lucide-react';
 
@@ -285,7 +286,8 @@ export function Modal({ title, onClose, children, busy }: { title: string; onClo
             document.body.style.overflow = prev;
         };
     }, [onClose, busy]);
-    return (
+    // Rendered into <body>: a parent with backdrop-filter (the widgets) would otherwise clip a fixed-position dialog
+    return createPortal(
         <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && !busy && onClose()}>
             <div className="modal" role="dialog" aria-modal="true" aria-labelledby={id}>
                 <div className="modal-header">
@@ -296,6 +298,7 @@ export function Modal({ title, onClose, children, busy }: { title: string; onClo
                 </div>
                 {children}
             </div>
-        </div>
+        </div>,
+        document.body,
     );
 }
