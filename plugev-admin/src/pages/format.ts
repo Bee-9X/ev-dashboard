@@ -29,6 +29,7 @@ export function statusBadge(status: string): string {
             return 'badge badge-info badge-dot';
         case 'suspended':
         case 'inactive':
+        case 'disabled':
             return 'badge badge-warning badge-dot';
         case 'archived':
             return 'badge badge-neutral badge-dot';

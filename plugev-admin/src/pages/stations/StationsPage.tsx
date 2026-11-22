@@ -1,26 +1,32 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { EvCharger, Network as NetworkIcon, Plus } from 'lucide-react';
+import { Cable, EvCharger, Network as NetworkIcon, Plus } from 'lucide-react';
 import { api, describeError } from '../../api/client';
-import type { Network, Page, Station } from '../../api/types';
+import type { Evse, Network, Page, Station } from '../../api/types';
 import { useAuth } from '../../auth/AuthProvider';
 import { Pagination } from '../../components/dialogs';
 import { Alert, Button, SelectField } from '../../components/ui';
 import { capitalize, formatDate, statusBadge } from '../format';
 import { useScopes } from '../users/scopes';
+import { ChargerDialog } from './chargers/ChargerDialogs';
+import { ChargersTable } from './chargers/ChargersTable';
 import { NetworkDialog, StationDialog } from './dialogs';
 
 const PAGE_SIZE = 20;
+
+type Tab = 'networks' | 'stations' | 'chargers';
 
 /** Same page as the Phase 0 portal: "Charging Station Details" with a tab per level. */
 export function StationsPage() {
     const { can } = useAuth();
     const [params, setParams] = useSearchParams();
     const canNetworks = can('network.read');
+    const canChargers = can('evse.read');
+    const asked = params.get('tab');
     // Station Admins have no network view; they start on their stations
-    const tab = canNetworks && params.get('tab') !== 'stations' ? 'networks' : 'stations';
+    const tab: Tab = asked === 'chargers' && canChargers ? 'chargers' : asked === 'stations' || !canNetworks ? 'stations' : 'networks';
 
-    const select = (next: 'networks' | 'stations') => setParams(next === 'networks' ? {} : { tab: next }, { replace: true });
+    const select = (next: Tab) => setParams(next === 'networks' ? {} : { tab: next }, { replace: true });
 
     return (
         <>
@@ -38,12 +44,14 @@ export function StationsPage() {
                 <button type="button" role="tab" className="tab" aria-selected={tab === 'stations'} onClick={() => select('stations')}>
                     Chargers Stations
                 </button>
-                <button type="button" role="tab" className="tab" aria-selected={false} disabled>
-                    Charger Terminals <span className="soon">Soon</span>
-                </button>
+                {canChargers && (
+                    <button type="button" role="tab" className="tab" aria-selected={tab === 'chargers'} onClick={() => select('chargers')}>
+                        Charger Terminals
+                    </button>
+                )}
             </div>
 
-            {tab === 'networks' ? <NetworksTab /> : <StationsTab />}
+            {tab === 'networks' ? <NetworksTab /> : tab === 'stations' ? <StationsTab /> : <ChargersTab />}
         </>
     );
 }
@@ -279,6 +287,91 @@ function StationsTab() {
                     onSaved={(s) => {
                         setAdding(false);
                         setAdded(s);
+                        void load();
+                    }}
+                />
+            )}
+        </section>
+    );
+}
+
+function ChargersTab() {
+    const { can } = useAuth();
+    const scopes = useScopes();
+    const [params, setParams] = useSearchParams();
+    const [page, setPage] = usePageParam();
+    const networkId = params.get('network') ?? '';
+    const fetch = useCallback(
+        (p: number) => api.evsesPage({ page: p, pageSize: PAGE_SIZE, networkId: networkId || undefined }),
+        [networkId],
+    );
+    const { data, error, loading, load } = usePaged<Evse>(fetch, page);
+    const [adding, setAdding] = useState(false);
+    const [added, setAdded] = useState<Evse | null>(null);
+    // chargers can be added to stations of active networks
+    const activeNetworks = new Set(scopes.networks.filter((n) => n.status === 'active').map((n) => n.id));
+    const addable = scopes.stations.filter((s) => activeNetworks.has(s.networkId));
+
+    const filter = (id: string) => {
+        const next = new URLSearchParams(params);
+        if (id) next.set('network', id);
+        else next.delete('network');
+        next.delete('page');
+        setParams(next, { replace: true });
+    };
+
+    return (
+        <section className="widget" aria-labelledby="chargers-title">
+            <h2 className="widget-title" id="chargers-title">
+                <Cable size={20} aria-hidden /> Charger Terminals Information
+            </h2>
+
+            <div className="toolbar">
+                {can('network.read') && scopes.networks.length > 1 ? (
+                    <div className="narrow">
+                        <SelectField
+                            label="Network"
+                            value={networkId}
+                            onChange={filter}
+                            placeholder="All networks"
+                            options={scopes.networks.map((n) => ({ value: n.id, label: n.name }))}
+                        />
+                    </div>
+                ) : (
+                    <div className="grow" />
+                )}
+                {can('evse.create') && (
+                    <Button onClick={() => setAdding(true)} disabled={!scopes.loaded || addable.length === 0}>
+                        <Plus size={18} aria-hidden /> Add charger
+                    </Button>
+                )}
+            </div>
+            {added && (
+                <Alert kind="success">
+                    <strong>{added.name ?? added.protocolIdentity}</strong> was added.{' '}
+                    <Link to={`/stations/chargers/${added.id}`}>Open it</Link> to print its QR stickers.
+                </Alert>
+            )}
+            {error && <LoadError error={error} retry={() => void load()} />}
+
+            {data ? (
+                <ChargersTable
+                    chargers={data.items}
+                    stationName={scopes.stationName}
+                    empty={networkId ? 'This network has no chargers yet.' : 'No chargers registered yet.'}
+                />
+            ) : (
+                loading && <TableLoading />
+            )}
+            {data && <Pagination page={data.page} pageSize={data.pageSize} total={data.total} loading={loading} onPage={setPage} />}
+
+            {adding && (
+                <ChargerDialog
+                    stations={networkId ? addable.filter((s) => s.networkId === networkId) : addable}
+                    onClose={() => setAdding(false)}
+                    onSaved={(e) => {
+                        setAdding(false);
+                        setAdded(e);
                         void load();
                     }}
                 />

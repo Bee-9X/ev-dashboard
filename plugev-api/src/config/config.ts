@@ -23,6 +23,8 @@ const schema = z.object({
     MFA_ISSUER: z.string().min(1).max(50).default('PLUG EV'),
     CORS_ORIGINS: z.string().default('http://localhost:3000'),
     PORTAL_URL: z.url().default('http://localhost:3000'),
+    // Start of the links in the connectors' QR codes, e.g. https://plugev.lk/c. Printed on stickers: keep it stable.
+    QR_LINK_BASE: z.url().optional(),
     TRUST_PROXY: bool.default(false),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
     MAIL_TRANSPORT: z.enum(['log', 'smtp']).default('log'),
@@ -57,6 +59,8 @@ export interface AppConfig {
     mfaIssuer: string;
     corsOrigins: string[];
     portalUrl: string;
+    /** QR links are `${qrLinkBase}/<code>`; defaults to PORTAL_URL + /c. */
+    qrLinkBase: string;
     trustProxy: boolean;
     logLevel: string;
     mail: {
@@ -96,6 +100,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
         mfaIssuer: e.MFA_ISSUER,
         corsOrigins: e.CORS_ORIGINS.split(',').map(s => s.trim()).filter(Boolean),
         portalUrl: e.PORTAL_URL.replace(/\/+$/, ''),
+        qrLinkBase: (e.QR_LINK_BASE ?? `${e.PORTAL_URL.replace(/\/+$/, '')}/c`).replace(/\/+$/, ''),
         trustProxy: e.TRUST_PROXY,
         logLevel: e.LOG_LEVEL,
         mail: {

@@ -22,12 +22,80 @@ export class NetworkEntity {
 
 export type StationStatus = 'active' | 'inactive';
 
+/** numeric columns come back from pg as strings; expose them as numbers. */
+const decimal = {
+    to: (v: number | null | undefined) => v,
+    from: (v: string | null) => (v === null || v === undefined ? null : Number(v)),
+};
+
+export type Weekday = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
+export const WEEKDAYS: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+
+/** Local times "HH:MM" in the station's time zone; "24:00" closes at midnight. A day that is missing or empty is closed. */
+export type OperatingHours =
+    | { type: 'always' }
+    | { type: 'weekly'; days: Partial<Record<Weekday, { open: string; close: string }[]>> };
+
 @Entity('stations')
 export class StationEntity {
     @PrimaryGeneratedColumn('uuid') id: string;
     @Column({ name: 'network_id', type: 'uuid' }) networkId: string;
     @Column() name: string;
     @Column({ type: 'text' }) status: StationStatus;
+    @Column({ type: 'text', nullable: true }) address: string | null;
+    @Column({ type: 'text', nullable: true }) phone: string | null;
+    @Column({ type: 'numeric', precision: 9, scale: 6, nullable: true, transformer: decimal }) latitude: number | null;
+    @Column({ type: 'numeric', precision: 9, scale: 6, nullable: true, transformer: decimal }) longitude: number | null;
+    /** Null: the network's time zone applies. */
+    @Column({ name: 'time_zone', type: 'text', nullable: true }) timeZone: string | null;
+    /** Null: not entered yet. */
+    @Column({ name: 'operating_hours', type: 'jsonb', nullable: true }) operatingHours: OperatingHours | null;
+    @Column({ type: 'text', array: true, default: () => "'{}'" }) amenities: string[];
+    /** Shown in the customer app; independent of status (FR ST 004). */
+    @Column({ name: 'public_visible', type: 'boolean', default: false }) publicVisible: boolean;
+    @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date;
+    @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date;
+}
+
+export type EvseProtocol = 'OCPP_1_6_J' | 'OCPP_1_6_S' | 'OCPP_1_5_S';
+export type EquipmentStatus = 'active' | 'disabled';
+
+/** A charger (spec: EVSE; old portal: charger terminal; OCPP 1.6: charge point). */
+@Entity('evses')
+export class EvseEntity {
+    @PrimaryGeneratedColumn('uuid') id: string;
+    @Column({ name: 'network_id', type: 'uuid' }) networkId: string;
+    @Column({ name: 'station_id', type: 'uuid' }) stationId: string;
+    /** Short public code printed in the QR stickers, e.g. K7M3QX. Never changes. */
+    @Column({ name: 'public_code', type: 'text' }) publicCode: string;
+    @Column({ type: 'text', nullable: true }) name: string | null;
+    @Column({ type: 'text' }) protocol: EvseProtocol;
+    /** The identity the charger connects to the gateway with (OCPP charge box id). */
+    @Column({ name: 'protocol_identity', type: 'text' }) protocolIdentity: string;
+    @Column({ type: 'text' }) vendor: string;
+    @Column({ type: 'text' }) model: string;
+    @Column({ name: 'serial_number', type: 'text', nullable: true }) serialNumber: string | null;
+    @Column({ name: 'firmware_version', type: 'text', nullable: true }) firmwareVersion: string | null;
+    @Column({ name: 'max_power_kw', type: 'numeric', precision: 7, scale: 2, nullable: true, transformer: decimal }) maxPowerKw: number | null;
+    @Column({ type: 'text' }) status: EquipmentStatus;
+    @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date;
+    @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date;
+}
+
+export type ConnectorType = 'CCS2' | 'CCS1' | 'CHADEMO' | 'TYPE2' | 'TYPE1' | 'GBT';
+
+/** One plug (or socket) of a charger: the part that goes into the car. */
+@Entity('connectors')
+export class ConnectorEntity {
+    @PrimaryGeneratedColumn('uuid') id: string;
+    @Column({ name: 'evse_id', type: 'uuid' }) evseId: string;
+    /** As the charger numbers it in OCPP: 1, 2... (0 is the charger itself, never a connector). */
+    @Column({ name: 'connector_number', type: 'int' }) connectorNumber: number;
+    @Column({ name: 'connector_type', type: 'text' }) connectorType: ConnectorType;
+    @Column({ name: 'current_type', type: 'text' }) currentType: 'AC' | 'DC';
+    @Column({ name: 'max_power_kw', type: 'numeric', precision: 7, scale: 2, transformer: decimal }) maxPowerKw: number;
+    @Column({ type: 'text' }) format: 'cable' | 'socket';
+    @Column({ type: 'text' }) status: EquipmentStatus;
     @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date;
     @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date;
 }
@@ -161,6 +229,6 @@ export class MfaRecoveryCodeEntity {
 }
 
 export const ENTITIES = [
-    NetworkEntity, StationEntity, UserEntity, RoleEntity, PermissionEntity, RoleAssignmentEntity,
+    NetworkEntity, StationEntity, EvseEntity, ConnectorEntity, UserEntity, RoleEntity, PermissionEntity, RoleAssignmentEntity,
     RefreshTokenEntity, AuthTokenEntity, LoginEventEntity, AuditLogEntity, MfaRecoveryCodeEntity,
 ];

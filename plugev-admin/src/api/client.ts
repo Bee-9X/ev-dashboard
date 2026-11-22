@@ -1,7 +1,7 @@
 import { session } from './session';
 import type {
-    ApiErrorBody, EnrolledSignIn, LoginResult, Me, MfaSetup, MfaStatus, Network, NetworkStatus, Page, RoleTarget, SignedIn,
-    Station, StationStatus, TokenResponse, UserStatus, UserSummary,
+    ApiErrorBody, ConnectorInput, EnrolledSignIn, EquipmentStatus, Evse, EvseInput, LoginResult, Me, MfaSetup, MfaStatus, Network,
+    NetworkStatus, Page, RoleTarget, SignedIn, Station, StationDetails, StationStatus, TokenResponse, UserStatus, UserSummary,
 } from './types';
 
 export interface NetworkInput {
@@ -171,8 +171,22 @@ export const api = {
     stationsPage: (q: { page?: number; pageSize?: number; networkId?: string }) => request<Page<Station>>(`/stations${query(q)}`),
     getStation: (id: string) => request<Station>(`/stations/${encodeURIComponent(id)}`),
     createStation: (body: { networkId: string; name: string }) => request<Station>('/stations', { method: 'POST', body }),
-    updateStation: (id: string, body: { name?: string; status?: StationStatus }) =>
+    updateStation: (id: string, body: Partial<StationDetails> & { name?: string; status?: StationStatus; publicVisible?: boolean }) =>
         request<Station>(`/stations/${encodeURIComponent(id)}`, { method: 'PATCH', body }),
+
+    evsesPage: (q: { page?: number; pageSize?: number; networkId?: string; stationId?: string }) =>
+        request<Page<Evse>>(`/evses${query(q)}`),
+    getEvse: (id: string) => request<Evse>(`/evses/${encodeURIComponent(id)}`),
+    createEvse: (body: Partial<EvseInput> & Pick<EvseInput, 'protocol' | 'protocolIdentity' | 'vendor' | 'model'> & {
+        stationId: string;
+        connectors: ConnectorInput[];
+    }) => request<Evse>('/evses', { method: 'POST', body }),
+    updateEvse: (id: string, body: Partial<EvseInput> & { stationId?: string; status?: EquipmentStatus }) =>
+        request<Evse>(`/evses/${encodeURIComponent(id)}`, { method: 'PATCH', body }),
+    addConnector: (evseId: string, body: ConnectorInput) =>
+        request<Evse>(`/evses/${encodeURIComponent(evseId)}/connectors`, { method: 'POST', body }),
+    updateConnector: (evseId: string, connectorId: string, body: Partial<Omit<ConnectorInput, 'connectorNumber'>> & { status?: EquipmentStatus }) =>
+        request<Evse>(`/evses/${encodeURIComponent(evseId)}/connectors/${encodeURIComponent(connectorId)}`, { method: 'PATCH', body }),
 };
 
 /** ?a=1&b=x, skipping empty values. */

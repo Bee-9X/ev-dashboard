@@ -51,6 +51,8 @@ services:
       # The admin portal: allowed to call the API, and the base of the links in emails
       CORS_ORIGINS: ${PORTAL_URL:-http://localhost:8080}
       PORTAL_URL: ${PORTAL_URL:-http://localhost:8080}
+      # Start of the links in the connectors' QR codes (default: PORTAL_URL/c). Printed on stickers: keep it stable
+      QR_LINK_BASE: ${QR_LINK_BASE:-}
       MAIL_TRANSPORT: ${MAIL_TRANSPORT:-log}
       MAIL_FROM: ${MAIL_FROM:-PLUG EV <no-reply@plugev.local>}
       SMTP_HOST: ${SMTP_HOST:-}

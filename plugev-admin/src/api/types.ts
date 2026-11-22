@@ -119,10 +119,102 @@ export interface Network {
 
 export type StationStatus = 'active' | 'inactive';
 
+export type Weekday = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
+export const WEEKDAYS: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+export interface TimeRange {
+    open: string;
+    close: string;
+}
+/** Local times "HH:MM"; "24:00" closes at midnight. A missing or empty day is closed. */
+export type OperatingHours = { type: 'always' } | { type: 'weekly'; days: Partial<Record<Weekday, TimeRange[]>> };
+
+export const AMENITIES = ['parking', 'restrooms', 'food', 'wifi', 'shopping', 'lodging', 'waiting_area'] as const;
+export type Amenity = (typeof AMENITIES)[number];
+
 export interface Station {
     id: string;
     networkId: string;
     name: string;
     status: StationStatus;
+    address?: string | null;
+    phone?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+    /** Null: the network's time zone. */
+    timeZone?: string | null;
+    operatingHours?: OperatingHours | null;
+    amenities?: string[];
+    /** Shown in the customer app. */
+    publicVisible?: boolean;
     createdAt?: string;
+}
+
+export interface StationDetails {
+    address: string | null;
+    phone: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    timeZone: string | null;
+    operatingHours: OperatingHours | null;
+    amenities: string[];
+}
+
+export type EvseProtocol = 'OCPP_1_6_J' | 'OCPP_1_6_S' | 'OCPP_1_5_S';
+export type EquipmentStatus = 'active' | 'disabled';
+export type ConnectorType = 'CCS2' | 'CCS1' | 'CHADEMO' | 'TYPE2' | 'TYPE1' | 'GBT';
+export const CONNECTOR_TYPES: ConnectorType[] = ['CCS2', 'CHADEMO', 'TYPE2', 'GBT', 'CCS1', 'TYPE1'];
+/** The chargers in use have one or two connectors (the API enforces the same). */
+export const MAX_CONNECTORS = 2;
+
+/** One plug (or socket) of a charger: the part that goes into the car. */
+export interface Connector {
+    id: string;
+    evseId: string;
+    connectorNumber: number;
+    connectorType: ConnectorType;
+    currentType: 'AC' | 'DC';
+    maxPowerKw: number;
+    format: 'cable' | 'socket';
+    status: EquipmentStatus;
+    /** Printed under the QR code, e.g. K7M3QX-1. */
+    qrCode: string;
+    /** What the QR code contains. */
+    qrUrl: string;
+}
+
+export interface ConnectorInput {
+    connectorNumber: number;
+    connectorType: ConnectorType;
+    currentType?: 'AC' | 'DC';
+    maxPowerKw: number;
+    format?: 'cable' | 'socket';
+}
+
+/** A charger (the spec's EVSE; "charger terminal" in the old portal). */
+export interface Evse {
+    id: string;
+    networkId: string;
+    stationId: string;
+    publicCode: string;
+    name: string | null;
+    protocol: EvseProtocol;
+    protocolIdentity: string;
+    vendor: string;
+    model: string;
+    serialNumber: string | null;
+    firmwareVersion: string | null;
+    maxPowerKw: number | null;
+    status: EquipmentStatus;
+    createdAt: string;
+    connectors: Connector[];
+}
+
+export interface EvseInput {
+    name: string | null;
+    protocol: EvseProtocol;
+    protocolIdentity: string;
+    vendor: string;
+    model: string;
+    serialNumber: string | null;
+    maxPowerKw: number | null;
 }
