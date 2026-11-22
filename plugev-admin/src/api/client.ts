@@ -1,8 +1,14 @@
 import { session } from './session';
 import type {
-    ApiErrorBody, EnrolledSignIn, LoginResult, Me, MfaSetup, MfaStatus, Network, Page, RoleTarget, SignedIn, Station,
-    TokenResponse, UserStatus, UserSummary,
+    ApiErrorBody, EnrolledSignIn, LoginResult, Me, MfaSetup, MfaStatus, Network, NetworkStatus, Page, RoleTarget, SignedIn,
+    Station, StationStatus, TokenResponse, UserStatus, UserSummary,
 } from './types';
+
+export interface NetworkInput {
+    name: string;
+    defaultCurrency: string;
+    timeZone: string;
+}
 
 export const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api/v1').replace(/\/+$/, '');
 
@@ -152,8 +158,21 @@ export const api = {
     revokeRole: (id: string, assignmentId: string) =>
         request<UserSummary>(`/users/${encodeURIComponent(id)}/roles/${encodeURIComponent(assignmentId)}`, { method: 'DELETE' }),
 
+    /** Up to 100, for pickers and names. */
     listNetworks: () => request<Page<Network>>('/networks?pageSize=100'),
+    /** Up to 100, for pickers and names. */
     listStations: (networkId?: string) => request<Page<Station>>(`/stations${query({ pageSize: 100, networkId })}`),
+
+    networksPage: (q: { page?: number; pageSize?: number }) => request<Page<Network>>(`/networks${query(q)}`),
+    getNetwork: (id: string) => request<Network>(`/networks/${encodeURIComponent(id)}`),
+    createNetwork: (body: NetworkInput) => request<Network>('/networks', { method: 'POST', body }),
+    updateNetwork: (id: string, body: Partial<NetworkInput> & { status?: NetworkStatus }) =>
+        request<Network>(`/networks/${encodeURIComponent(id)}`, { method: 'PATCH', body }),
+    stationsPage: (q: { page?: number; pageSize?: number; networkId?: string }) => request<Page<Station>>(`/stations${query(q)}`),
+    getStation: (id: string) => request<Station>(`/stations/${encodeURIComponent(id)}`),
+    createStation: (body: { networkId: string; name: string }) => request<Station>('/stations', { method: 'POST', body }),
+    updateStation: (id: string, body: { name?: string; status?: StationStatus }) =>
+        request<Station>(`/stations/${encodeURIComponent(id)}`, { method: 'PATCH', body }),
 };
 
 /** ?a=1&b=x, skipping empty values. */

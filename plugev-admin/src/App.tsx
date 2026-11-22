@@ -8,6 +8,9 @@ import { ProfilePage } from './pages/ProfilePage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { SetPasswordPage } from './pages/auth/SetPasswordPage';
+import { NetworkDetailPage } from './pages/stations/NetworkDetailPage';
+import { StationDetailPage } from './pages/stations/StationDetailPage';
+import { StationsPage } from './pages/stations/StationsPage';
 import { UserDetailPage } from './pages/users/UserDetailPage';
 import { UsersPage } from './pages/users/UsersPage';
 
@@ -79,6 +82,12 @@ export function App() {
                 <Route path="profile" element={<ProfilePage />} />
                 <Route path="users" element={<RequirePermission permission="user.read"><UsersPage /></RequirePermission>} />
                 <Route path="users/:userId" element={<RequirePermission permission="user.read"><UserDetailPage /></RequirePermission>} />
+                <Route path="stations" element={<RequirePermission permission="station.read"><StationsPage /></RequirePermission>} />
+                <Route
+                    path="stations/networks/:networkId"
+                    element={<RequirePermission permission="network.read"><NetworkDetailPage /></RequirePermission>}
+                />
+                <Route path="stations/:stationId" element={<RequirePermission permission="station.read"><StationDetailPage /></RequirePermission>} />
                 <Route path="*" element={<NotFoundPage />} />
             </Route>
         </Routes>

@@ -18,7 +18,15 @@ Built so far:
   - user profile: add or remove roles, suspend, reactivate, deactivate, cancel an invitation, reset MFA
   - every change asks for a reason, which goes to the audit log
   - a Network Admin sees and manages only the Station Admins of their own network; the API enforces the same rules
-- The other menu items from the old portal are listed as "Soon" and move over one by one.
+- **Stations** ("Charging Station Details", as in the old portal):
+  - **Charging Networks** tab: networks with their station count; add a network (Super Admin)
+  - network page: profile (currency, time zone), update it, suspend / reactivate / archive (Super Admin), its stations, add a station
+  - **Chargers Stations** tab: all stations you can see, filtered by network; add a station
+  - station page: rename; mark inactive or active (Network Admin or Super Admin: an inactive station takes away its Station Admins' access)
+  - **Charger Terminals** comes with Phase 2 (EVSEs and connectors)
+  - a Station Admin sees only their own stations
+- The other menu items from the old portal (Accounts, TopUp Accounts, Remote Start, My Recent Activity) are listed as "Soon"
+  and move over one by one.
 
 Stack: Vite 7, React 19, TypeScript, React Router 7, Vitest with Testing Library.
 

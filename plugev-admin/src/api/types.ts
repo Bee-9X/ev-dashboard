@@ -104,17 +104,25 @@ export interface RoleTarget {
     stationId?: string;
 }
 
+export type NetworkStatus = 'active' | 'suspended' | 'archived';
+
 export interface Network {
     id: string;
     name: string;
-    status: string;
+    status: NetworkStatus;
     defaultCurrency: string;
     timeZone: string;
+    createdAt?: string;
+    /** Only in the list (GET /networks). */
+    stationCount?: number;
 }
+
+export type StationStatus = 'active' | 'inactive';
 
 export interface Station {
     id: string;
     networkId: string;
     name: string;
-    status: string;
+    status: StationStatus;
+    createdAt?: string;
 }

@@ -4,6 +4,7 @@ import { Search, ShieldCheck, ShieldOff, UserPlus, Users } from 'lucide-react';
 import { api, describeError } from '../../api/client';
 import type { Page, UserSummary } from '../../api/types';
 import { useAuth } from '../../auth/AuthProvider';
+import { Pagination } from '../../components/dialogs';
 import { Alert, Button, leadIcon, SelectField, TextField } from '../../components/ui';
 import { capitalize, formatDateTime, initials, roleLabel, statusBadge } from '../format';
 import { InviteDialog } from './InviteDialog';
@@ -61,10 +62,6 @@ export function UsersPage() {
         }
         setParams(next, { replace: true });
     }
-
-    const pages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
-    const from = data && data.total ? (data.page - 1) * data.pageSize + 1 : 0;
-    const to = data ? Math.min(data.page * data.pageSize, data.total) : 0;
 
     return (
         <>
@@ -202,30 +199,14 @@ export function UsersPage() {
                     )}
                 </div>
 
-                {data && data.total > 0 && (
-                    <div className="pagination">
-                        <span>
-                            {from}–{to} of {data.total}
-                        </span>
-                        <div className="row">
-                            <Button
-                                variant="secondary"
-                                className="btn-sm"
-                                disabled={page <= 1 || loading}
-                                onClick={() => update({ page: String(page - 1) })}
-                            >
-                                Previous
-                            </Button>
-                            <Button
-                                variant="secondary"
-                                className="btn-sm"
-                                disabled={page >= pages || loading}
-                                onClick={() => update({ page: String(page + 1) })}
-                            >
-                                Next
-                            </Button>
-                        </div>
-                    </div>
+                {data && (
+                    <Pagination
+                        page={data.page}
+                        pageSize={data.pageSize}
+                        total={data.total}
+                        loading={loading}
+                        onPage={(p) => update({ page: String(p) })}
+                    />
                 )}
             </section>
 

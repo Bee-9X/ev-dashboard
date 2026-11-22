@@ -59,6 +59,21 @@ describe('RBAC with network and station scope', () => {
             expect(filtered.body.items).toEqual([]);
         });
 
+        it('edits and deactivates stations in their network only', async () => {
+            const patch = (id: string, body: object) => t.http.patch(`/api/v1/stations/${id}`).set(bearer(adminA)).send(body);
+            const renamed = await patch(stA2, { name: 'A2 (Kottawa)', status: 'inactive' }).expect(200);
+            expect(renamed.body).toMatchObject({ name: 'A2 (Kottawa)', status: 'inactive' });
+            await patch(stA2, { name: 'A2', status: 'active' }).expect(200);
+            await patch(stA2, { name: 'A1' }).expect(409);
+            await patch(stB1, { name: 'pwned' }).expect(404);
+            await patch(stA2, { status: 'archived' }).expect(400);
+        });
+
+        it('sees how many stations each network has', async () => {
+            const list = await get(adminA, '/networks').expect(200);
+            expect(list.body.items[0].stationCount).toBeGreaterThanOrEqual(2);
+        });
+
         it('can invite Station Admins for own stations only, and cannot create Network or Super Admins', async () => {
             await t.http.post('/api/v1/users').set(bearer(adminA))
                 .send({ email: 'sa-b@plugev.test', fullName: 'x', role: 'STATION_ADMIN', stationId: stB1 }).expect(404);
@@ -125,6 +140,14 @@ describe('RBAC with network and station scope', () => {
             await get(stationAdminA1, `/networks/${netA}`).expect(403); // no network.read at all
         });
 
+        it('can rename their own station but no other, and cannot change its status', async () => {
+            await t.http.patch(`/api/v1/stations/${stA1}`).set(bearer(stationAdminA1)).send({ name: 'A1 Main' }).expect(200);
+            await t.http.patch(`/api/v1/stations/${stA2}`).set(bearer(stationAdminA1)).send({ name: 'x' }).expect(404);
+            await t.http.patch(`/api/v1/stations/${stA1}`).set(bearer(stationAdminA1)).send({ name: 'A1' }).expect(200);
+            // an inactive station takes away its Station Admins' access, so they cannot switch it off themselves
+            await t.http.patch(`/api/v1/stations/${stA1}`).set(bearer(stationAdminA1)).send({ status: 'inactive' }).expect(403);
+        });
+
         it('cannot manage users, create stations or read the audit log', async () => {
             await get(stationAdminA1, '/users').expect(403);
             await t.http.post('/api/v1/stations').set(bearer(stationAdminA1)).send({ networkId: netA, name: 'x' }).expect(403);
@@ -160,7 +183,7 @@ describe('RBAC with network and station scope', () => {
             expect(entry).toMatchObject({ actorUserId: root.userId, actorRoles: ['SUPER_ADMIN'], outcome: 'success', resourceType: 'network' });
 
             const actions = new Set((await get(root, '/audit-logs?pageSize=100').expect(200)).body.items.map((a: { action: string }) => a.action));
-            for (const a of ['network.create', 'network.update', 'network.status_change', 'station.create', 'user.invite',
+            for (const a of ['network.create', 'network.update', 'network.status_change', 'station.create', 'station.update', 'station.status_change', 'user.invite',
                 'user.invite_accepted', 'user.status_change', 'role.assign', 'role.revoke']) {
                 expect(actions).toContain(a);
             }

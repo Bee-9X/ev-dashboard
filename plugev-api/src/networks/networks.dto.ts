@@ -72,6 +72,18 @@ export class CreateStationDto {
     name: string;
 }
 
+export const STATION_STATUSES = ['active', 'inactive'] as const;
+
+export class UpdateStationDto {
+    @ApiPropertyOptional({ example: 'Kottawa Kinro' })
+    @IsOptional() @Transform(trim) @IsString() @IsNotEmpty() @MaxLength(200)
+    name?: string;
+
+    @ApiPropertyOptional({ enum: STATION_STATUSES })
+    @IsOptional() @IsIn(STATION_STATUSES)
+    status?: (typeof STATION_STATUSES)[number];
+}
+
 export class StationListQueryDto extends PageQueryDto {
     @ApiPropertyOptional()
     @IsOptional() @IsUUID()

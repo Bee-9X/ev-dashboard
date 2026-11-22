@@ -28,7 +28,10 @@ export function statusBadge(status: string): string {
         case 'invited':
             return 'badge badge-info badge-dot';
         case 'suspended':
+        case 'inactive':
             return 'badge badge-warning badge-dot';
+        case 'archived':
+            return 'badge badge-neutral badge-dot';
         default:
             return 'badge badge-danger badge-dot';
     }

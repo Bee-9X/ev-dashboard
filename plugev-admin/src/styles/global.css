@@ -120,6 +120,11 @@ code, .mono { font-family: var(--mono); }
     color: #fff;
 }
 .widget-title svg { color: var(--icon); }
+/* a widget title with an action on the right */
+.widget-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+.widget-head .widget-title { margin-bottom: 0; }
+.grid + .widget { margin-top: 24px; }
+.note { margin: 14px 0; }
 .widget-subtitle {
     margin-top: -10px;
     margin-bottom: 14px;
@@ -270,6 +275,7 @@ code, .mono { font-family: var(--mono); }
 .badge-warning { background: rgba(228, 148, 0, 0.2); color: #ffc65c; }
 .badge-danger { background: rgba(229, 72, 77, 0.2); color: #ff9a9d; }
 .badge-info { background: rgba(36, 119, 255, 0.2); color: #9cc0ff; }
+.badge-neutral { background: rgba(255, 255, 255, 0.1); color: var(--text-muted); }
 .badge-dot::before {
     content: '';
     width: 7px;
@@ -303,6 +309,7 @@ code, .mono { font-family: var(--mono); }
 .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
 .row-end { justify-content: flex-end; }
 .muted { color: var(--text-muted); }
+.small { font-size: 0.85rem; }
 .stack > * + * { margin-top: 24px; }
 
 /* ---------- full-page status (loading, server unreachable) ---------- */
@@ -390,7 +397,11 @@ code, .mono { font-family: var(--mono); }
 .toolbar { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 16px; }
 .toolbar .field { margin-bottom: 0; }
 .toolbar .grow { flex: 1 1 260px; }
-.toolbar .narrow { flex: 0 0 180px; }
+.toolbar .narrow { flex: 0 0 220px; }
+.cell-link { font-weight: 600; color: #fff; text-decoration: none; }
+.cell-link:hover { color: var(--primary); text-decoration: underline; }
+.form-row { display: grid; grid-template-columns: 1fr 1.6fr; gap: 0 14px; }
+@media (max-width: 560px) { .form-row { grid-template-columns: 1fr; } }
 
 .table-wrap { overflow-x: auto; margin: 0 -22px; }
 .table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }

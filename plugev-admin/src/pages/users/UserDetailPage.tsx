@@ -4,7 +4,8 @@ import { ArrowLeft, BadgeCheck, ShieldAlert, Trash2, UserRound } from 'lucide-re
 import { api, ApiError, describeError } from '../../api/client';
 import type { RoleAssignment, UserStatus, UserSummary } from '../../api/types';
 import { useAuth } from '../../auth/AuthProvider';
-import { Alert, Button, Modal, TextAreaField } from '../../components/ui';
+import { ConfirmDialog, ReasonDialog, useSubmit } from '../../components/dialogs';
+import { Alert, Button, Modal } from '../../components/ui';
 import { capitalize, formatDate, formatDateTime, initials, roleLabel, statusBadge } from '../format';
 import { describeScope, emptyRole, RoleFields, roleTarget, useScopes, type RoleDraft } from './scopes';
 
@@ -238,81 +239,6 @@ export function UserDetailPage() {
                 </>
             )}
         </>
-    );
-}
-
-function useSubmit(fn: () => Promise<void>) {
-    const [busy, setBusy] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const run = async () => {
-        setBusy(true);
-        setError(null);
-        try {
-            await fn();
-        } catch (err) {
-            setError(describeError(err));
-            setBusy(false);
-        }
-    };
-    return { busy, error, run };
-}
-
-function ReasonDialog({ title, explain, confirm, danger, onClose, onConfirm }: {
-    title: string;
-    explain: string;
-    confirm: string;
-    danger?: boolean;
-    onClose: () => void;
-    onConfirm: (reason: string) => Promise<void>;
-}) {
-    const [reason, setReason] = useState('');
-    const { busy, error, run } = useSubmit(() => onConfirm(reason.trim()));
-    return (
-        <Modal title={title} onClose={onClose} busy={busy}>
-            <form
-                onSubmit={(e: FormEvent) => {
-                    e.preventDefault();
-                    if (reason.trim()) void run();
-                }}
-                noValidate
-            >
-                <p className="muted">{explain}</p>
-                {error && <Alert kind="error">{error}</Alert>}
-                <TextAreaField label="Reason" value={reason} onChange={setReason} maxLength={500} hint="Kept in the audit log." autoFocus required />
-                <div className="modal-actions">
-                    <Button variant="secondary" onClick={onClose} disabled={busy}>
-                        Cancel
-                    </Button>
-                    <Button type="submit" variant={danger ? 'danger' : 'primary'} loading={busy} disabled={!reason.trim()}>
-                        {confirm}
-                    </Button>
-                </div>
-            </form>
-        </Modal>
-    );
-}
-
-function ConfirmDialog({ title, explain, confirm, onClose, onConfirm }: {
-    title: string;
-    explain: string;
-    confirm: string;
-    onClose: () => void;
-    onConfirm: () => Promise<void>;
-}) {
-    const { busy, error, run } = useSubmit(onConfirm);
-    return (
-        <Modal title={title} onClose={onClose} busy={busy}>
-            <p className="muted">{explain}</p>
-            {error && <Alert kind="error">{error}</Alert>}
-            <div className="modal-actions">
-                <Button variant="secondary" onClick={onClose} disabled={busy}>
-                    Cancel
-                </Button>
-                <Button variant="danger" loading={busy} onClick={() => void run()}>
-                    {confirm}
-                </Button>
-            </div>
-        </Modal>
     );
 }
 

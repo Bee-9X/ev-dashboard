@@ -32,7 +32,7 @@ const MANAGEMENT: NavEntry[] = [
             { label: 'My Profile', to: '/profile' },
         ],
     },
-    { label: 'Stations', icon: EvCharger },
+    { label: 'Stations', icon: EvCharger, to: '/stations', permission: 'station.read' },
 ];
 
 const ACTIVITY: NavEntry[] = [
@@ -46,6 +46,9 @@ export function crumbsFor(path: string): string[] {
     if (path === '/profile') return ['User', 'My Profile'];
     if (path === '/users') return ['User', 'User Management'];
     if (path.startsWith('/users/')) return ['User', 'User Management', 'User Profile'];
+    if (path === '/stations') return ['Stations'];
+    if (path.startsWith('/stations/networks/')) return ['Stations', 'Charging Networks', 'Network Information'];
+    if (path.startsWith('/stations/')) return ['Stations', 'Chargers Stations', 'Station Information'];
     return [];
 }
 
@@ -112,7 +115,7 @@ function NavGroup({ entry, onNavigate }: { entry: NavEntry; onNavigate: () => vo
 
     return (
         <li className="nav-item">
-            <NavLink to={entry.to} end className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`} onClick={onNavigate}>
+            <NavLink to={entry.to} end={entry.to === '/'} className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`} onClick={onNavigate}>
                 <span className="nav-icon"><Icon size={20} aria-hidden /></span>
                 <span className="nav-label">{entry.label}</span>
             </NavLink>
