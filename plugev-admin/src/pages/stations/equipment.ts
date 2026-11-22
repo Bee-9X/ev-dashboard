@@ -44,6 +44,62 @@ export const DAY_LABELS: Record<Weekday, string> = {
     sun: 'Sunday',
 };
 
+/** The protocol name the gateway reports for each registered protocol. */
+const GATEWAY_PROTOCOL: Record<EvseProtocol, string> = {
+    OCPP_1_6_J: 'ocpp1.6-json',
+    OCPP_1_6_S: 'ocpp1.6-soap',
+    OCPP_1_5_S: 'ocpp1.5-soap',
+};
+const GATEWAY_PROTOCOL_LABELS: Record<string, string> = {
+    'ocpp1.6-json': 'OCPP 1.6 (JSON)',
+    'ocpp1.6-soap': 'OCPP 1.6 (SOAP)',
+    'ocpp1.5-soap': 'OCPP 1.5 (SOAP)',
+};
+
+/** The protocol the charger actually connects with, when it differs from the registered one. */
+export function protocolMismatch(e: Pick<Evse, 'protocol' | 'live'>): string | null {
+    const seen = e.live?.protocol;
+    if (!seen || seen === GATEWAY_PROTOCOL[e.protocol]) return null;
+    return GATEWAY_PROTOCOL_LABELS[seen] ?? seen;
+}
+
+/** Badge for an OCPP connector status; anything unknown is shown neutrally. */
+export function liveBadge(status: string): string {
+    switch (status) {
+        case 'Available':
+            return 'badge badge-success badge-dot';
+        case 'Charging':
+        case 'Occupied':
+        case 'Preparing':
+        case 'SuspendedEV':
+        case 'SuspendedEVSE':
+        case 'Finishing':
+        case 'Reserved':
+            return 'badge badge-info badge-dot';
+        case 'Unavailable':
+            return 'badge badge-warning badge-dot';
+        case 'Faulted':
+            return 'badge badge-danger badge-dot';
+        default:
+            return 'badge badge-neutral badge-dot';
+    }
+}
+
+/** "SuspendedEV" -> "Suspended EV" */
+export function liveLabel(status: string): string {
+    return status.replace(/([a-z])([A-Z])/g, '$1 $2');
+}
+
+/** "just now", "5 min ago", "3 h ago", or the date. */
+export function timeAgo(iso: string | null | undefined, now = Date.now()): string {
+    if (!iso) return '—';
+    const sec = Math.max(0, Math.round((now - Date.parse(iso)) / 1000));
+    if (sec < 45) return 'just now';
+    if (sec < 3600) return `${Math.round(sec / 60)} min ago`;
+    if (sec < 86400) return `${Math.round(sec / 3600)} h ago`;
+    return new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+}
+
 /** "CCS2 · DC 60 kW" */
 export function connectorLabel(c: Pick<Connector, 'connectorType' | 'currentType' | 'maxPowerKw'>): string {
     return `${CONNECTOR_LABELS[c.connectorType]} · ${c.currentType} ${formatKw(c.maxPowerKw)}`;

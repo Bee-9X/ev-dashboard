@@ -82,6 +82,37 @@ export class EvseEntity {
     @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date;
 }
 
+/** What the gateway last reported about a charger (written only by the gateway link). */
+@Entity('evse_live_states')
+export class EvseLiveStateEntity {
+    @PrimaryColumn({ name: 'evse_id', type: 'uuid' }) evseId: string;
+    @Column({ name: 'connection_state', type: 'text' }) connectionState: 'online' | 'offline';
+    @Column({ type: 'text', nullable: true }) protocol: string | null;
+    @Column({ name: 'last_seen_at', type: 'timestamptz', nullable: true }) lastSeenAt: Date | null;
+    @Column({ name: 'connected_at', type: 'timestamptz', nullable: true }) connectedAt: Date | null;
+    @Column({ name: 'disconnected_at', type: 'timestamptz', nullable: true }) disconnectedAt: Date | null;
+    @Column({ name: 'disconnect_reason', type: 'text', nullable: true }) disconnectReason: string | null;
+    @Column({ name: 'last_boot_at', type: 'timestamptz', nullable: true }) lastBootAt: Date | null;
+    @Column({ name: 'reported_vendor', type: 'text', nullable: true }) reportedVendor: string | null;
+    @Column({ name: 'reported_model', type: 'text', nullable: true }) reportedModel: string | null;
+    @Column({ name: 'reported_serial', type: 'text', nullable: true }) reportedSerial: string | null;
+    @Column({ name: 'reported_firmware', type: 'text', nullable: true }) reportedFirmware: string | null;
+    @Column({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date;
+}
+
+/** The last status a charger reported for one of its connectors (0 = the charger itself). */
+@Entity('connector_live_states')
+export class ConnectorLiveStateEntity {
+    @PrimaryColumn({ name: 'evse_id', type: 'uuid' }) evseId: string;
+    @PrimaryColumn({ name: 'connector_number', type: 'int' }) connectorNumber: number;
+    @Column({ type: 'text' }) status: string;
+    @Column({ name: 'error_code', type: 'text', nullable: true }) errorCode: string | null;
+    @Column({ type: 'text', nullable: true }) info: string | null;
+    @Column({ name: 'vendor_error_code', type: 'text', nullable: true }) vendorErrorCode: string | null;
+    @Column({ name: 'status_at', type: 'timestamptz' }) statusAt: Date;
+    @Column({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date;
+}
+
 export type ConnectorType = 'CCS2' | 'CCS1' | 'CHADEMO' | 'TYPE2' | 'TYPE1' | 'GBT';
 
 /** One plug (or socket) of a charger: the part that goes into the car. */
@@ -229,6 +260,6 @@ export class MfaRecoveryCodeEntity {
 }
 
 export const ENTITIES = [
-    NetworkEntity, StationEntity, EvseEntity, ConnectorEntity, UserEntity, RoleEntity, PermissionEntity, RoleAssignmentEntity,
+    NetworkEntity, StationEntity, EvseEntity, ConnectorEntity, EvseLiveStateEntity, ConnectorLiveStateEntity, UserEntity, RoleEntity, PermissionEntity, RoleAssignmentEntity,
     RefreshTokenEntity, AuthTokenEntity, LoginEventEntity, AuditLogEntity, MfaRecoveryCodeEntity,
 ];

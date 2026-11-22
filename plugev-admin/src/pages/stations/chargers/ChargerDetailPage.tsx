@@ -2,16 +2,17 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { ArrowLeft, Cable, ExternalLink, Info, Pencil, Plus, Power, Printer, Radio } from 'lucide-react';
 import { api, ApiError, describeError } from '../../../api/client';
-import type { Connector, Evse, Network, Station } from '../../../api/types';
+import type { Connector, ConnectorLive, Evse, EvseLive, Network, Station } from '../../../api/types';
 import { MAX_CONNECTORS } from '../../../api/types';
 import { useAuth } from '../../../auth/AuthProvider';
 import { ConfirmDialog } from '../../../components/dialogs';
 import { Alert, Button, QrCode } from '../../../components/ui';
-import { capitalize, formatDate, statusBadge } from '../../format';
-import { connectorLabel, evseTitle, formatKw, PROTOCOL_LABELS } from '../equipment';
+import { capitalize, formatDate, formatDateTime, statusBadge } from '../../format';
+import { connectorLabel, evseTitle, formatKw, liveBadge, liveLabel, PROTOCOL_LABELS, protocolMismatch, timeAgo } from '../equipment';
 import { ChargerDialog, ConnectorDialog } from './ChargerDialogs';
 
 const CONSOLE_URL = import.meta.env.VITE_CONSOLE_URL as string | undefined;
+const LIVE_REFRESH_MS = 15000;
 
 type DialogState =
     | { kind: 'edit' }
@@ -54,6 +55,14 @@ export function ChargerDetailPage() {
     useEffect(() => {
         void load();
     }, [load]);
+
+    // live status: refresh quietly while the page is open
+    useEffect(() => {
+        const timer = setInterval(() => {
+            if (document.visibilityState === 'visible') api.getEvse(evseId).then(setEvse, () => undefined);
+        }, LIVE_REFRESH_MS);
+        return () => clearInterval(timer);
+    }, [evseId]);
 
     // other stations of the network, so the charger can be moved
     useEffect(() => {
@@ -139,20 +148,7 @@ export function ChargerDetailPage() {
                             )}
                         </section>
 
-                        <section className="widget" aria-labelledby="charger-live">
-                            <h2 className="widget-title" id="charger-live">
-                                <Radio size={20} aria-hidden /> Live status
-                            </h2>
-                            <p className="muted">
-                                Online or offline, last seen, connector availability and faults appear here once the PLUG EV gateway is
-                                connected to this platform (next phase).
-                            </p>
-                            {CONSOLE_URL && (
-                                <a className="btn btn-secondary" href={CONSOLE_URL} target="_blank" rel="noreferrer">
-                                    Open the charger console <ExternalLink size={16} aria-hidden />
-                                </a>
-                            )}
-                        </section>
+                        <LiveStatus evse={evse} />
                     </div>
 
                     <section className="widget" aria-labelledby="charger-connectors">
@@ -182,9 +178,15 @@ export function ChargerDetailPage() {
                                             <span className="connector-number">{c.connectorNumber}</span> {connectorLabel(c)}
                                         </h3>
                                         <p className="muted">
-                                            {c.format === 'socket' ? 'Socket: the driver brings a cable' : 'Attached cable'} ·{' '}
-                                            <span className={statusBadge(c.status)}>{capitalize(c.status)}</span>
+                                            {c.format === 'socket' ? 'Socket: the driver brings a cable' : 'Attached cable'}
+                                            {c.status === 'disabled' && (
+                                                <>
+                                                    {' · '}
+                                                    <span className={statusBadge(c.status)}>Disabled</span>
+                                                </>
+                                            )}
                                         </p>
+                                        <ConnectorStatus live={c.live} online={evse.live?.online ?? false} />
                                         <p className="small">
                                             QR code <strong className="code-text">{c.qrCode}</strong>
                                         </p>
@@ -266,6 +268,131 @@ export function ChargerDetailPage() {
                         />
                     )}
                 </>
+            )}
+        </>
+    );
+}
+
+/** Online state, last seen, what the charger reported at boot, and its overall status (FR EVSE 003, FR MON 003). */
+function LiveStatus({ evse }: { evse: Evse }) {
+    const live: EvseLive | null | undefined = evse.live;
+    const mismatch = protocolMismatch(evse);
+    return (
+        <section className="widget" aria-labelledby="charger-live">
+            <h2 className="widget-title" id="charger-live">
+                <Radio size={20} aria-hidden /> Live status
+            </h2>
+            {!live ? (
+                <>
+                    <p className="muted">
+                        Not heard from yet. The charger appears here once it connects to the PLUG EV gateway with the Charger ID{' '}
+                        <strong className="code-text">{evse.protocolIdentity}</strong>.
+                    </p>
+                    {CONSOLE_URL && (
+                        <a className="btn btn-secondary" href={CONSOLE_URL} target="_blank" rel="noreferrer">
+                            Open the charger console <ExternalLink size={16} aria-hidden />
+                        </a>
+                    )}
+                </>
+            ) : (
+                <>
+                    <dl className="details">
+                        <dt>Connection</dt>
+                        <dd>
+                            {live.online ? (
+                                <span className="badge badge-success badge-dot">Online</span>
+                            ) : (
+                                <span className="badge badge-neutral badge-dot">Offline</span>
+                            )}
+                        </dd>
+                        <dt>Last message</dt>
+                        <dd title={formatDateTime(live.lastSeenAt)}>{timeAgo(live.lastSeenAt)}</dd>
+                        {live.online ? (
+                            <>
+                                <dt>Online since</dt>
+                                <dd>{formatDateTime(live.connectedAt)}</dd>
+                            </>
+                        ) : (
+                            live.disconnectedAt && (
+                                <>
+                                    <dt>Offline since</dt>
+                                    <dd>
+                                        {formatDateTime(live.disconnectedAt)}
+                                        {live.disconnectReason && <div className="muted small">{live.disconnectReason}</div>}
+                                    </dd>
+                                </>
+                            )
+                        )}
+                        {live.chargerStatus && (
+                            <>
+                                <dt>Charger status</dt>
+                                <dd>
+                                    <StatusLine live={live.chargerStatus} online={live.online} />
+                                </dd>
+                            </>
+                        )}
+                        <dt>Last boot</dt>
+                        <dd>{formatDateTime(live.lastBootAt)}</dd>
+                        {(live.reported.vendor || live.reported.model) && (
+                            <>
+                                <dt>Reports itself as</dt>
+                                <dd>
+                                    {[live.reported.vendor, live.reported.model].filter(Boolean).join(' ')}
+                                    {live.reported.serialNumber && <div className="muted small">Serial {live.reported.serialNumber}</div>}
+                                </dd>
+                            </>
+                        )}
+                    </dl>
+                    {mismatch && (
+                        <Alert kind="warning">
+                            The charger connects with {mismatch}, but is registered as {PROTOCOL_LABELS[evse.protocol]}. Edit the charger
+                            to match.
+                        </Alert>
+                    )}
+                    {live.reported.serialNumber && evse.serialNumber && live.reported.serialNumber !== evse.serialNumber && (
+                        <Alert kind="info">
+                            The charger reports serial number {live.reported.serialNumber}; {evse.serialNumber} is registered.
+                        </Alert>
+                    )}
+                    {live.unregisteredConnectors.length > 0 && (
+                        <Alert kind="info">
+                            The charger also reports connector {live.unregisteredConnectors.join(' and ')}, which is not registered here.
+                        </Alert>
+                    )}
+                </>
+            )}
+        </section>
+    );
+}
+
+/** The connector's last reported status; while the charger is offline it is only the last known one. */
+function ConnectorStatus({ live, online }: { live: ConnectorLive | null | undefined; online: boolean }) {
+    return (
+        <p className="small">
+            {live ? <StatusLine live={live} online={online} /> : <span className="muted">No status reported yet</span>}
+        </p>
+    );
+}
+
+function StatusLine({ live, online }: { live: ConnectorLive; online: boolean }) {
+    const fault = live.errorCode && live.errorCode !== 'NoError' ? live.errorCode : null;
+    return (
+        <>
+            {online ? (
+                <span className={liveBadge(live.status)}>{liveLabel(live.status)}</span>
+            ) : (
+                <span className="badge badge-neutral badge-dot" title="The charger is offline">
+                    Offline · last {liveLabel(live.status)}
+                </span>
+            )}{' '}
+            <span className="muted small" title={formatDateTime(live.statusAt)}>
+                {timeAgo(live.statusAt)}
+            </span>
+            {(fault || live.info) && (
+                <span className="muted small">
+                    {' · '}
+                    {[fault, live.info, live.vendorErrorCode].filter(Boolean).join(' · ')}
+                </span>
             )}
         </>
     );

@@ -11,6 +11,7 @@ const ConnectionEvent = require('../models/ConnectionEvent');
 const { nextSequence } = require('../models/Counter');
 const config = require('../config');
 const chargerService = require('./chargerService');
+const platformLink = require('./platformLink');
 const { extractSamples, meterKey } = require('./meter');
 const { OcppError } = require('../util/errors');
 const logger = require('../logger');
@@ -82,6 +83,13 @@ const handlers = {
         });
         ConnectionEvent.create({ chargerIdentity: ctx.identity, event: 'Boot', protocol: ctx.protocol })
             .catch(err => logger.warn(`Could not store boot event: ${err.message}`));
+        platformLink.emit('boot', ctx.identity, {
+            protocol: ctx.protocol,
+            vendor: str(p.chargePointVendor),
+            model: str(p.chargePointModel),
+            serialNumber: str(p.chargeBoxSerialNumber) || str(p.chargePointSerialNumber),
+            firmwareVersion: str(p.firmwareVersion),
+        });
 
         return ctx.version === '1.5'
             ? { status: 'Accepted', currentTime: now.toISOString(), heartbeatInterval: config.heartbeatIntervalSec }
@@ -96,14 +104,24 @@ const handlers = {
 
     async StatusNotification(ctx, p) {
         const connectorId = num(p.connectorId) ?? 0;
+        const statusTimestamp = date(p.timestamp);
         await chargerService.updateConnector(ctx.identity, connectorId, {
             status: str(p.status),
             errorCode: str(p.errorCode),
             info: str(p.info),
             vendorId: str(p.vendorId),
             vendorErrorCode: str(p.vendorErrorCode),
-            statusTimestamp: date(p.timestamp),
+            statusTimestamp,
             updatedAt: new Date(),
+        });
+        platformLink.emit('connector_status', ctx.identity, {
+            protocol: ctx.protocol,
+            connectorNumber: connectorId,
+            status: str(p.status),
+            errorCode: str(p.errorCode),
+            info: str(p.info),
+            vendorErrorCode: str(p.vendorErrorCode),
+            statusAt: statusTimestamp?.toISOString(),
         });
         return {};
     },

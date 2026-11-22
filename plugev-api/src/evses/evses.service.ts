@@ -7,18 +7,51 @@ import { AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
 import { Page, toPage } from '../common/pagination';
 import { APP_CONFIG, AppConfig } from '../config/config';
-import { ConnectorEntity, ConnectorType, EvseEntity, NetworkEntity, StationEntity } from '../database/entities';
+import {
+    ConnectorEntity, ConnectorLiveStateEntity, ConnectorType, EvseEntity, EvseLiveStateEntity, NetworkEntity, StationEntity,
+} from '../database/entities';
 import {
     ConnectorInputDto, CreateEvseDto, EvseListQueryDto, MAX_CONNECTORS, UpdateConnectorDto, UpdateEvseDto,
 } from './evses.dto';
+
+/** The last status the charger reported for a connector (OCPP StatusNotification). */
+export interface ConnectorLiveView {
+    status: string;
+    errorCode: string | null;
+    info: string | null;
+    vendorErrorCode: string | null;
+    statusAt: Date;
+}
 
 export type ConnectorView = ConnectorEntity & {
     /** Printed under the QR code and typed in when scanning fails, e.g. K7M3QX-1. */
     qrCode: string;
     /** What the QR code contains. */
     qrUrl: string;
+    /** Null until the charger reports a status for this connector. */
+    live: ConnectorLiveView | null;
 };
-export type EvseView = EvseEntity & { connectors: ConnectorView[] };
+
+/** What the gateway last reported (FR EVSE 003, FR MON 003). Null until the charger is first heard from. */
+export interface EvseLiveView {
+    /** Connected and heard from recently. */
+    online: boolean;
+    /** As the gateway reported it; `online` also accounts for silence (e.g. the gateway stopped). */
+    connectionState: 'online' | 'offline';
+    protocol: string | null;
+    lastSeenAt: Date | null;
+    connectedAt: Date | null;
+    disconnectedAt: Date | null;
+    disconnectReason: string | null;
+    lastBootAt: Date | null;
+    reported: { vendor: string | null; model: string | null; serialNumber: string | null; firmwareVersion: string | null };
+    /** Status of connector 0: the charger as a whole. */
+    chargerStatus: ConnectorLiveView | null;
+    /** Connector numbers the charger reports that are not registered here. */
+    unregisteredConnectors: number[];
+}
+
+export type EvseView = EvseEntity & { connectors: ConnectorView[]; live: EvseLiveView | null };
 
 /** No 0/O or 1/I, so a printed code can be read and typed back. */
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -255,16 +288,50 @@ export class EvsesService {
 
     private async withConnectors(evses: EvseEntity[]): Promise<EvseView[]> {
         if (!evses.length) return [];
-        const connectors = await this.db.getRepository(ConnectorEntity).find({
-            where: { evseId: In(evses.map(e => e.id)) },
-            order: { connectorNumber: 'ASC' },
+        const ids = In(evses.map(e => e.id));
+        const [connectors, liveStates, connectorStates] = await Promise.all([
+            this.db.getRepository(ConnectorEntity).find({ where: { evseId: ids }, order: { connectorNumber: 'ASC' } }),
+            this.db.getRepository(EvseLiveStateEntity).find({ where: { evseId: ids } }),
+            this.db.getRepository(ConnectorLiveStateEntity).find({ where: { evseId: ids } }),
+        ]);
+        const staleBefore = Date.now() - this.config.chargerOfflineAfterSec * 1000;
+        const liveOf = (s: ConnectorLiveStateEntity | undefined): ConnectorLiveView | null =>
+            s ? { status: s.status, errorCode: s.errorCode, info: s.info, vendorErrorCode: s.vendorErrorCode, statusAt: s.statusAt } : null;
+
+        return evses.map(e => {
+            const own = connectors.filter(c => c.evseId === e.id);
+            const states = connectorStates.filter(s => s.evseId === e.id);
+            const live = liveStates.find(l => l.evseId === e.id);
+            return Object.assign(e, {
+                connectors: own.map(c => {
+                    const qrCode = `${e.publicCode}-${c.connectorNumber}`;
+                    return Object.assign(c, {
+                        qrCode,
+                        qrUrl: `${this.config.qrLinkBase}/${qrCode}`,
+                        live: liveOf(states.find(s => s.connectorNumber === c.connectorNumber)),
+                    });
+                }),
+                live: live ? {
+                    online: live.connectionState === 'online' && !!live.lastSeenAt && live.lastSeenAt.getTime() >= staleBefore,
+                    connectionState: live.connectionState,
+                    protocol: live.protocol,
+                    lastSeenAt: live.lastSeenAt,
+                    connectedAt: live.connectedAt,
+                    disconnectedAt: live.disconnectedAt,
+                    disconnectReason: live.disconnectReason,
+                    lastBootAt: live.lastBootAt,
+                    reported: {
+                        vendor: live.reportedVendor, model: live.reportedModel,
+                        serialNumber: live.reportedSerial, firmwareVersion: live.reportedFirmware,
+                    },
+                    chargerStatus: liveOf(states.find(s => s.connectorNumber === 0)),
+                    unregisteredConnectors: states
+                        .map(s => s.connectorNumber)
+                        .filter(n => n > 0 && !own.some(c => c.connectorNumber === n))
+                        .sort((a, b) => a - b),
+                } : null,
+            });
         });
-        return evses.map(e => Object.assign(e, {
-            connectors: connectors.filter(c => c.evseId === e.id).map(c => {
-                const qrCode = `${e.publicCode}-${c.connectorNumber}`;
-                return Object.assign(c, { qrCode, qrUrl: `${this.config.qrLinkBase}/${qrCode}` });
-            }),
-        }));
     }
 }
 

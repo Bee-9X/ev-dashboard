@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const config = require('./config');
 const logger = require('./logger');
 const chargerService = require('./core/chargerService');
+const platformLink = require('./core/platformLink');
 const { createApiRouter } = require('./api/routes');
 const { createSoapRouter } = require('./adapters/ocppSoap');
 const { createJsonGateway } = require('./adapters/ocppJson');
@@ -41,6 +42,9 @@ async function start(opts = {}) {
     logger.info('Connected to MongoDB');
     await Promise.all(Object.values(mongoose.models).map(m => m.syncIndexes()));
     await chargerService.resetConnectionStates();
+    logger.info(platformLink.enabled()
+        ? `Platform link on: charger activity is sent to ${config.platformApiUrl}`
+        : 'Platform link off (set PLATFORM_API_URL and PLATFORM_GATEWAY_KEY to show chargers live in the admin portal)');
 
     const app = buildApp();
     const server = http.createServer(app);
@@ -69,6 +73,7 @@ async function start(opts = {}) {
 
     async function stop() {
         clearInterval(sweeper);
+        await platformLink.drain().catch(() => undefined);
         gateway.close();
         await new Promise(resolve => server.close(resolve));
         if (legacyServer) await new Promise(resolve => legacyServer.close(resolve));

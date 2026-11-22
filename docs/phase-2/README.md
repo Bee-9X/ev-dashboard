@@ -13,6 +13,31 @@ Status: **in progress** (branch `phase-2-chargers`). Parts of Phase 2 were start
 | E2.5 Users and admins | Done in Phase 1 | — |
 | E2.6 Dashboards | — | Status per network, station and charger |
 
+## Live charger status (start of Phase 3)
+
+The gateway (`plugev-server`) now reports what chargers do to the platform (backlog E3.4, canonical events per
+ADR-004/007). The charger page shows:
+
+- online or offline, when it was last heard from, since when, and why it went offline;
+- what the charger reports at boot (make, model, serial number, firmware; the firmware is stored on the charger);
+- the status of the charger and of each connector (Available, Occupied, Charging, Faulted and so on), refreshed every
+  15 seconds; while offline, only as the last known status;
+- warnings when the charger connects with a different protocol than registered, reports another serial number, or
+  reports a connector that is not registered.
+
+The terminals tables show each charger's connection. Sessions, meter values and remote commands through the platform
+come next (E3.5, E3.6); until then the charger console stays in use for those.
+
+To turn the link on, set the same key in both apps (at least 32 characters):
+
+| App | Setting |
+|---|---|
+| `plugev-api/.env` | `GATEWAY_API_KEY=<key>` |
+| `plugev-server/.env` | `PLATFORM_API_URL=http://localhost:4000/api/v1` and `PLATFORM_GATEWAY_KEY=<key>` |
+
+Restart both. The gateway logs `Platform link on`, and warns once for each charger that is not registered in the
+admin portal.
+
 ## How the pieces fit
 
 ```

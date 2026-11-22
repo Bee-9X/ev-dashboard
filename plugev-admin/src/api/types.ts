@@ -166,6 +166,34 @@ export const CONNECTOR_TYPES: ConnectorType[] = ['CCS2', 'CHADEMO', 'TYPE2', 'GB
 /** The chargers in use have one or two connectors (the API enforces the same). */
 export const MAX_CONNECTORS = 2;
 
+/** The last status a charger reported for a connector (OCPP StatusNotification). */
+export interface ConnectorLive {
+    status: string;
+    errorCode: string | null;
+    info: string | null;
+    vendorErrorCode: string | null;
+    statusAt: string;
+}
+
+/** What the gateway last reported about a charger. */
+export interface EvseLive {
+    /** Connected and heard from recently. */
+    online: boolean;
+    connectionState: 'online' | 'offline';
+    /** As the gateway saw it, e.g. ocpp1.5-soap. */
+    protocol: string | null;
+    lastSeenAt: string | null;
+    connectedAt: string | null;
+    disconnectedAt: string | null;
+    disconnectReason: string | null;
+    lastBootAt: string | null;
+    reported: { vendor: string | null; model: string | null; serialNumber: string | null; firmwareVersion: string | null };
+    /** Connector 0: the charger as a whole. */
+    chargerStatus: ConnectorLive | null;
+    /** Connector numbers the charger reports that are not registered. */
+    unregisteredConnectors: number[];
+}
+
 /** One plug (or socket) of a charger: the part that goes into the car. */
 export interface Connector {
     id: string;
@@ -180,6 +208,8 @@ export interface Connector {
     qrCode: string;
     /** What the QR code contains. */
     qrUrl: string;
+    /** Null until the charger reports a status for it. */
+    live?: ConnectorLive | null;
 }
 
 export interface ConnectorInput {
@@ -207,6 +237,8 @@ export interface Evse {
     status: EquipmentStatus;
     createdAt: string;
     connectors: Connector[];
+    /** Null until the charger is first heard from through the gateway. */
+    live?: EvseLive | null;
 }
 
 export interface EvseInput {

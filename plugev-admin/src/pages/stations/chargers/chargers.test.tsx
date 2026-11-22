@@ -246,3 +246,67 @@ describe('Station details', () => {
         expect(screen.queryByRole('button', { name: /Add new terminal/ })).not.toBeInTheDocument();
     });
 });
+
+describe('Live status from the gateway', () => {
+    const now = () => new Date().toISOString();
+    const live = (over: Partial<NonNullable<Evse['live']>> = {}): NonNullable<Evse['live']> => ({
+        online: true, connectionState: 'online', protocol: 'ocpp1.6-json', lastSeenAt: now(), connectedAt: now(),
+        disconnectedAt: null, disconnectReason: null, lastBootAt: now(),
+        reported: { vendor: 'SETEC', model: 'EVC-50', serialNumber: 'SN1', firmwareVersion: '2.1.7' },
+        chargerStatus: { status: 'Available', errorCode: 'NoError', info: null, vendorErrorCode: null, statusAt: now() },
+        unregisteredConnectors: [],
+        ...over,
+    });
+    const withLive = (l: Evse['live'], c1Status?: string): Evse => ({
+        ...EVSE,
+        live: l,
+        connectors: EVSE.connectors.map((c) => ({
+            ...c,
+            live: c.connectorNumber === 1 && c1Status ? { status: c1Status, errorCode: 'NoError', info: null, vendorErrorCode: null, statusAt: now() } : null,
+        })),
+    });
+
+    it('says when a charger has never connected, with the ID it must use', async () => {
+        signedIn(NET_ADMIN, { [`GET /evses/${EVSE.id}`]: () => ({ body: withLive(null) }) });
+        renderApp(`/stations/chargers/${EVSE.id}`);
+        expect(await screen.findByText(/Not heard from yet/)).toHaveTextContent('KTW-01');
+    });
+
+    it('shows online, the charger and connector statuses, and what it reports about itself', async () => {
+        signedIn(NET_ADMIN, { [`GET /evses/${EVSE.id}`]: () => ({ body: withLive(live({ unregisteredConnectors: [3] }), 'SuspendedEV') }) });
+        renderApp(`/stations/chargers/${EVSE.id}`);
+        const panel = (await screen.findByRole('heading', { name: 'Live status' })).closest('section')!;
+        expect(within(panel).getByText('Online')).toBeInTheDocument();
+        expect(within(panel).getByText('Available')).toBeInTheDocument();
+        expect(within(panel).getByText('SETEC EVC-50')).toBeInTheDocument();
+        expect(within(panel).getByText(/also reports connector 3/)).toBeInTheDocument();
+        expect(within(screen.getByRole('article', { name: 'Connector 1' })).getByText('Suspended EV')).toBeInTheDocument();
+        expect(within(screen.getByRole('article', { name: 'Connector 2' })).getByText('No status reported yet')).toBeInTheDocument();
+    });
+
+    it('while offline, shows only the last known connector status, and why it went offline', async () => {
+        signedIn(NET_ADMIN, {
+            [`GET /evses/${EVSE.id}`]: () => ({
+                body: withLive(live({ online: false, connectionState: 'offline', disconnectedAt: now(), disconnectReason: 'no message for more than 90s' }), 'Charging'),
+            }),
+        });
+        renderApp(`/stations/chargers/${EVSE.id}`);
+        expect(await screen.findByText('no message for more than 90s')).toBeInTheDocument();
+        expect(within(screen.getByRole('article', { name: 'Connector 1' })).getByText('Offline · last Charging')).toBeInTheDocument();
+    });
+
+    it('warns when the charger connects with another protocol than registered', async () => {
+        signedIn(NET_ADMIN, { [`GET /evses/${EVSE.id}`]: () => ({ body: withLive(live({ protocol: 'ocpp1.5-soap' })) }) });
+        renderApp(`/stations/chargers/${EVSE.id}`);
+        expect(await screen.findByText(/connects with OCPP 1.5 \(SOAP\), but is registered as OCPP 1.6 \(JSON\)/)).toBeInTheDocument();
+    });
+
+    it('shows the connection in the terminals table', async () => {
+        signedIn(NET_ADMIN, { 'GET /evses': () => page([withLive(live()), { ...EVSE, id: 'e2', name: 'Spare', live: null }]) });
+        renderApp('/stations?tab=chargers');
+        const online = (await screen.findByRole('link', { name: 'Fast charger 1' })).closest('tr')!;
+        expect(within(online).getByText('Online')).toBeInTheDocument();
+        const never = screen.getByRole('link', { name: 'Spare' }).closest('tr')!;
+        expect(within(never).getByText('Never connected')).toBeInTheDocument();
+    });
+});

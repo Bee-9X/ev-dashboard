@@ -53,6 +53,8 @@ services:
       PORTAL_URL: ${PORTAL_URL:-http://localhost:8080}
       # Start of the links in the connectors' QR codes (default: PORTAL_URL/c). Printed on stickers: keep it stable
       QR_LINK_BASE: ${QR_LINK_BASE:-}
+      # Charger gateway link: the key the gateway sends with charger events (empty = link off)
+      GATEWAY_API_KEY: ${PLATFORM_GATEWAY_KEY:-}
       MAIL_TRANSPORT: ${MAIL_TRANSPORT:-log}
       MAIL_FROM: ${MAIL_FROM:-PLUG EV <no-reply@plugev.local>}
       SMTP_HOST: ${SMTP_HOST:-}
@@ -87,6 +89,9 @@ services:
       MONGODB_URI: mongodb://mongo:27017/plugev
       API_KEY: ${GATEWAY_API_KEY:-}
       CORS_ORIGINS: ${CONSOLE_URL:-http://localhost:8081}
+      # Sends charger activity to the platform, so the admin portal shows it live
+      PLATFORM_API_URL: http://api:4000/api/v1
+      PLATFORM_GATEWAY_KEY: ${PLATFORM_GATEWAY_KEY:-}
       LOG_LEVEL: ${LOG_LEVEL:-info}
     ports:
       - "3003:3003"

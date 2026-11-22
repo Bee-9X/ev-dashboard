@@ -38,6 +38,11 @@ const config = {
     // Optional comma separated idTag allow-list. Empty = accept every idTag (discovery mode).
     idTagAllowList: list('ID_TAG_ALLOWLIST'),
 
+    // Link to the PLUG EV platform (plugev-api), e.g. http://localhost:4000/api/v1, and the shared key
+    // (the API's GATEWAY_API_KEY). Both set: charger activity shows in the admin portal.
+    platformApiUrl: process.env.PLATFORM_API_URL || '',
+    platformGatewayKey: process.env.PLATFORM_GATEWAY_KEY || '',
+
     // Raw OCPP message retention (diagnostics, spec §8.2/§8.4)
     messageRetentionDays: int('MESSAGE_RETENTION_DAYS', 30),
     logLevel: (process.env.LOG_LEVEL || 'info').toLowerCase(),
