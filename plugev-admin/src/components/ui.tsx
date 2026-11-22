@@ -203,3 +203,99 @@ export function RecoveryCodes({ codes, email }: { codes: string[]; email: string
 export function formatSecret(secret: string): string {
     return secret.replace(/(.{4})/g, '$1 ').trim();
 }
+
+/* ---------- Select and text area ---------- */
+
+export function SelectField({ label, value, onChange, options, placeholder, hint, error, disabled, required }: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    options: { value: string; label: string }[];
+    placeholder?: string;
+    hint?: ReactNode;
+    error?: string | null;
+    disabled?: boolean;
+    required?: boolean;
+}) {
+    const id = useId();
+    return (
+        <div className="field">
+            <label htmlFor={id}>{label}</label>
+            <select
+                id={id}
+                className="input select"
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                disabled={disabled}
+                required={required}
+                aria-invalid={error ? true : undefined}
+            >
+                {placeholder !== undefined && <option value="">{placeholder}</option>}
+                {options.map((o) => (
+                    <option key={o.value} value={o.value}>
+                        {o.label}
+                    </option>
+                ))}
+            </select>
+            {hint && <span className="field-hint">{hint}</span>}
+            {error && <span className="field-error">{error}</span>}
+        </div>
+    );
+}
+
+export function TextAreaField({ label, value, onChange, hint, maxLength, required, autoFocus }: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    hint?: ReactNode;
+    maxLength?: number;
+    required?: boolean;
+    autoFocus?: boolean;
+}) {
+    const id = useId();
+    return (
+        <div className="field">
+            <label htmlFor={id}>{label}</label>
+            <textarea
+                id={id}
+                className="input textarea"
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                maxLength={maxLength}
+                required={required}
+                autoFocus={autoFocus}
+                rows={3}
+            />
+            {hint && <span className="field-hint">{hint}</span>}
+        </div>
+    );
+}
+
+/* ---------- Modal ---------- */
+
+export function Modal({ title, onClose, children, busy }: { title: string; onClose: () => void; children: ReactNode; busy?: boolean }) {
+    const id = useId();
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !busy && onClose();
+        document.addEventListener('keydown', onKey);
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.removeEventListener('keydown', onKey);
+            document.body.style.overflow = prev;
+        };
+    }, [onClose, busy]);
+    return (
+        <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && !busy && onClose()}>
+            <div className="modal" role="dialog" aria-modal="true" aria-labelledby={id}>
+                <div className="modal-header">
+                    <h2 id={id}>{title}</h2>
+                    <button type="button" className="icon-btn" aria-label="Close" onClick={onClose} disabled={busy}>
+                        ×
+                    </button>
+                </div>
+                {children}
+            </div>
+        </div>
+    );
+}

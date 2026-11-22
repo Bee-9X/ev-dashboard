@@ -17,7 +17,7 @@ export function DashboardPage() {
             </div>
 
             <Alert kind="info">
-                The portal is moving to the new platform screen by screen. Sign-in and your profile are live; the other menu
+                The portal is moving to the new platform screen by screen. Sign-in, your profile and User Management are live; the other menu
                 items marked “Soon” follow next.
             </Alert>
 

@@ -1,6 +1,7 @@
 import { session } from './session';
 import type {
-    ApiErrorBody, EnrolledSignIn, LoginResult, Me, MfaSetup, MfaStatus, SignedIn, TokenResponse,
+    ApiErrorBody, EnrolledSignIn, LoginResult, Me, MfaSetup, MfaStatus, Network, Page, RoleTarget, SignedIn, Station,
+    TokenResponse, UserStatus, UserSummary,
 } from './types';
 
 export const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api/v1').replace(/\/+$/, '');
@@ -136,7 +137,32 @@ export const api = {
     mfaRegenerateCodes: (code: string) =>
         request<{ recoveryCodes: string[] }>('/users/me/mfa/recovery-codes', { method: 'POST', body: { code } }),
     mfaDisable: (code: string) => request<void>('/users/me/mfa', { method: 'DELETE', body: { code } }),
+
+    listUsers: (q: { page?: number; pageSize?: number; search?: string; status?: string }) =>
+        request<Page<UserSummary>>(`/users${query(q)}`),
+    getUser: (id: string) => request<UserSummary>(`/users/${encodeURIComponent(id)}`),
+    inviteUser: (body: RoleTarget & { email: string; fullName: string; phone?: string }) =>
+        request<UserSummary>('/users', { method: 'POST', body }),
+    setUserStatus: (id: string, status: Exclude<UserStatus, 'invited'>, reason: string) =>
+        request<UserSummary>(`/users/${encodeURIComponent(id)}/status`, { method: 'PATCH', body: { status, reason } }),
+    resetUserMfa: (id: string, reason: string) =>
+        request<UserSummary>(`/users/${encodeURIComponent(id)}/mfa/reset`, { method: 'POST', body: { reason } }),
+    assignRole: (id: string, target: RoleTarget) =>
+        request<UserSummary>(`/users/${encodeURIComponent(id)}/roles`, { method: 'POST', body: target }),
+    revokeRole: (id: string, assignmentId: string) =>
+        request<UserSummary>(`/users/${encodeURIComponent(id)}/roles/${encodeURIComponent(assignmentId)}`, { method: 'DELETE' }),
+
+    listNetworks: () => request<Page<Network>>('/networks?pageSize=100'),
+    listStations: (networkId?: string) => request<Page<Station>>(`/stations${query({ pageSize: 100, networkId })}`),
 };
+
+/** ?a=1&b=x, skipping empty values. */
+function query(params: Record<string, string | number | undefined>): string {
+    const q = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== '') q.set(k, String(v));
+    const s = q.toString();
+    return s ? `?${s}` : '';
+}
 
 /** A sentence for the user; the correlation ID helps support find the request in the logs. */
 export function describeError(err: unknown): string {

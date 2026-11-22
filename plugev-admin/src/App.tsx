@@ -8,6 +8,8 @@ import { ProfilePage } from './pages/ProfilePage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { SetPasswordPage } from './pages/auth/SetPasswordPage';
+import { UserDetailPage } from './pages/users/UserDetailPage';
+import { UsersPage } from './pages/users/UsersPage';
 
 function SessionGate({ children }: { children: ReactNode }) {
     const { status, retry } = useAuth();
@@ -30,6 +32,21 @@ function SessionGate({ children }: { children: ReactNode }) {
         );
     }
     if (status === 'signedOut') return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+    return <>{children}</>;
+}
+
+/** Hides a screen from users without the permission (the API enforces it too). */
+function RequirePermission({ permission, children }: { permission: string; children: ReactNode }) {
+    const { can } = useAuth();
+    if (!can(permission)) {
+        return (
+            <div className="widget" style={{ maxWidth: 560 }}>
+                <h1>No access</h1>
+                <p className="muted">Your role does not include this screen. Ask an administrator if you need it.</p>
+                <Link to="/">Go to the dashboard</Link>
+            </div>
+        );
+    }
     return <>{children}</>;
 }
 
@@ -60,6 +77,8 @@ export function App() {
             >
                 <Route index element={<DashboardPage />} />
                 <Route path="profile" element={<ProfilePage />} />
+                <Route path="users" element={<RequirePermission permission="user.read"><UsersPage /></RequirePermission>} />
+                <Route path="users/:userId" element={<RequirePermission permission="user.read"><UserDetailPage /></RequirePermission>} />
                 <Route path="*" element={<NotFoundPage />} />
             </Route>
         </Routes>

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import logo from '../assets/logo-grey.png';
 import { useAuth } from '../auth/AuthProvider';
+import { initials } from '../pages/format';
 import '../styles/layout.css';
 
 const CONSOLE_URL = import.meta.env.VITE_CONSOLE_URL as string | undefined;
@@ -27,7 +28,7 @@ const MANAGEMENT: NavEntry[] = [
         label: 'User',
         icon: UserRound,
         children: [
-            { label: 'User Management', permission: 'user.read' },
+            { label: 'User Management', to: '/users', permission: 'user.read' },
             { label: 'My Profile', to: '/profile' },
         ],
     },
@@ -40,18 +41,12 @@ const ACTIVITY: NavEntry[] = [
     { label: 'My Recent Activity', icon: Activity },
 ];
 
-export const PAGE_NAMES: Record<string, string[]> = {
-    '/': ['Dashboard'],
-    '/profile': ['User', 'My Profile'],
-};
-
-function initials(name: string): string {
-    return name
-        .split(/\s+/)
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((p) => p[0]!.toUpperCase())
-        .join('');
+export function crumbsFor(path: string): string[] {
+    if (path === '/') return ['Dashboard'];
+    if (path === '/profile') return ['User', 'My Profile'];
+    if (path === '/users') return ['User', 'User Management'];
+    if (path.startsWith('/users/')) return ['User', 'User Management', 'User Profile'];
+    return [];
 }
 
 function Soon() {
@@ -171,7 +166,7 @@ function UserMenu() {
 export function AppLayout() {
     const [navOpen, setNavOpen] = useState(false);
     const location = useLocation();
-    const crumbs = PAGE_NAMES[location.pathname] ?? [];
+    const crumbs = crumbsFor(location.pathname);
 
     // close the mobile menu after navigating
     useEffect(() => setNavOpen(false), [location.pathname]);

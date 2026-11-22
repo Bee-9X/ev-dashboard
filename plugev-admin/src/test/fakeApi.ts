@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
 import type { Me } from '../api/types';
 
-export type Handler = (body: any, init: RequestInit) => { status?: number; body?: unknown } | Promise<{ status?: number; body?: unknown }>;
+export type Handler = (body: any, init: RequestInit, url: URL) => { status?: number; body?: unknown } | Promise<{ status?: number; body?: unknown }>;
 
 /**
  * Replaces fetch with a tiny fake of plugev-api. Routes are "METHOD /path" (path after /api/v1).
@@ -15,7 +15,7 @@ export function fakeApi(routes: Record<string, Handler>) {
         const handler = routes[key];
         if (!handler) throw new Error(`fakeApi: no route for ${key}`);
         const body = typeof init.body === 'string' ? JSON.parse(init.body) : undefined;
-        const res = await handler(body, init);
+        const res = await handler(body, init, url);
         const status = res.status ?? 200;
         return new Response(res.body === undefined ? null : JSON.stringify(res.body), {
             status,

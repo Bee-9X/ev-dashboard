@@ -73,3 +73,48 @@ export const ROLE_LABELS: Record<string, string> = {
     STATION_ADMIN: 'Station Admin',
     EV_USER: 'EV User',
 };
+
+export interface Page<T> {
+    items: T[];
+    page: number;
+    pageSize: number;
+    total: number;
+}
+
+export type UserStatus = 'invited' | 'active' | 'suspended' | 'deactivated';
+
+/** A user as administrators see it (GET /users, /users/:id). */
+export interface UserSummary {
+    id: string;
+    email: string;
+    fullName: string;
+    phone: string | null;
+    status: UserStatus;
+    mfaEnabled: boolean;
+    lastLoginAt: string | null;
+    createdAt: string;
+    roles: RoleAssignment[];
+}
+
+export type AdminRole = 'SUPER_ADMIN' | 'NETWORK_ADMIN' | 'STATION_ADMIN';
+
+export interface RoleTarget {
+    role: AdminRole;
+    networkId?: string;
+    stationId?: string;
+}
+
+export interface Network {
+    id: string;
+    name: string;
+    status: string;
+    defaultCurrency: string;
+    timeZone: string;
+}
+
+export interface Station {
+    id: string;
+    networkId: string;
+    name: string;
+    status: string;
+}

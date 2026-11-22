@@ -12,6 +12,12 @@ Built so far:
 - **Dashboard:** your access and account security.
 - **My Profile:** details, roles, MFA status, new recovery codes, turning MFA on or off (off only when the role allows it),
   and a password change link.
+- **User Management** (Admin Role tab; EV Users comes later):
+  - list with search, status filter and paging
+  - invite an administrator with a role for a network or station
+  - user profile: add or remove roles, suspend, reactivate, deactivate, cancel an invitation, reset MFA
+  - every change asks for a reason, which goes to the audit log
+  - a Network Admin sees and manages only the Station Admins of their own network; the API enforces the same rules
 - The other menu items from the old portal are listed as "Soon" and move over one by one.
 
 Stack: Vite 7, React 19, TypeScript, React Router 7, Vitest with Testing Library.

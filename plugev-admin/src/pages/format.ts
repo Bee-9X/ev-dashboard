@@ -33,3 +33,16 @@ export function statusBadge(status: string): string {
             return 'badge badge-danger badge-dot';
     }
 }
+
+export function initials(name: string): string {
+    return name
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((p) => p[0]!.toUpperCase())
+        .join('');
+}
+
+export function capitalize(s: string): string {
+    return s.charAt(0).toUpperCase() + s.slice(1);
+}
