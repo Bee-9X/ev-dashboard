@@ -6,7 +6,10 @@ import { AuditService } from '../audit/audit.service';
 import { Errors } from '../common/errors';
 import { Page, PageQueryDto, toPage } from '../common/pagination';
 import { NetworkEntity, StationEntity } from '../database/entities';
-import { CreateNetworkDto, CreateStationDto, StationListQueryDto, UpdateNetworkDto } from './networks.dto';
+import { CreateNetworkDto, CreateStationDto, StationListQueryDto, UpdateNetworkDto, UpdateStationDto } from './networks.dto';
+
+/** A network as listed: with the number of its stations (all of them, for the network's own admins and Super Admins). */
+export type NetworkWithCount = NetworkEntity & { stationCount: number };
 
 const isUniqueViolation = (e: unknown) => e instanceof QueryFailedError && (e as { code?: string }).code === '23505';
 
@@ -18,7 +21,7 @@ const isUniqueViolation = (e: unknown) => e instanceof QueryFailedError && (e as
 export class NetworksService {
     constructor(private readonly db: DataSource, private readonly audit: AuditService) {}
 
-    async list(ctx: AccessContext, q: PageQueryDto): Promise<Page<NetworkEntity>> {
+    async list(ctx: AccessContext, q: PageQueryDto): Promise<Page<NetworkWithCount>> {
         const scope = ctx.scopeFor(P.NETWORK_READ);
         if (!scope.all && !scope.networkIds.length) return toPage([], 0, q);
         const [items, total] = await this.db.getRepository(NetworkEntity).findAndCount({
@@ -27,7 +30,14 @@ export class NetworksService {
             skip: (q.page - 1) * q.pageSize,
             take: q.pageSize,
         });
-        return toPage(items, total, q);
+        const counts = new Map<string, number>();
+        if (items.length) {
+            const rows: { network_id: string; count: string }[] = await this.db.query(
+                'SELECT network_id, count(*) AS count FROM stations WHERE network_id = ANY($1) GROUP BY network_id',
+                [items.map(n => n.id)]);
+            for (const r of rows) counts.set(r.network_id, Number(r.count));
+        }
+        return toPage(items.map(n => Object.assign(n, { stationCount: counts.get(n.id) ?? 0 })), total, q);
     }
 
     async get(ctx: AccessContext, id: string): Promise<NetworkEntity> {
@@ -123,6 +133,38 @@ export class NetworksService {
                     networkId: network.id, stationId: station.id, details: { name: station.name },
                 }, m);
                 return station;
+            });
+        } catch (e) {
+            if (isUniqueViolation(e)) throw Errors.conflict('A station with this name already exists in the network', 'NAME_TAKEN');
+            throw e;
+        }
+    }
+
+    async updateStation(ctx: AccessContext, id: string, dto: UpdateStationDto): Promise<StationEntity> {
+        const station = await this.getStation(ctx, id);
+        if (!ctx.canOnStation(P.STATION_UPDATE, station.id, station.networkId)) throw Errors.forbidden();
+        const network = await this.db.getRepository(NetworkEntity).findOneByOrFail({ id: station.networkId });
+        if (network.status === 'archived') throw Errors.conflict('Stations of an archived network cannot be changed', 'NETWORK_ARCHIVED');
+        // Station Admins lose access to an inactive station, so only network-level admins change its status
+        if (dto.status !== undefined && dto.status !== station.status && !ctx.canOnNetwork(P.STATION_UPDATE, station.networkId)) {
+            throw Errors.forbidden('Only a Network Admin or Super Admin can change the status of a station');
+        }
+
+        const changes: Record<string, { from: unknown; to: unknown }> = {};
+        for (const key of ['name', 'status'] as const) {
+            if (dto[key] !== undefined && dto[key] !== station[key]) changes[key] = { from: station[key], to: dto[key] };
+        }
+        if (!Object.keys(changes).length) return station;
+
+        try {
+            return await this.db.transaction(async m => {
+                Object.assign(station, Object.fromEntries(Object.entries(changes).map(([k, v]) => [k, v.to])));
+                const saved = await m.getRepository(StationEntity).save(station);
+                await this.audit.record({
+                    actor: ctx, action: changes.status ? 'station.status_change' : 'station.update',
+                    resourceType: 'station', resourceId: id, networkId: station.networkId, stationId: id, details: { changes },
+                }, m);
+                return saved;
             });
         } catch (e) {
             if (isUniqueViolation(e)) throw Errors.conflict('A station with this name already exists in the network', 'NAME_TAKEN');

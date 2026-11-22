@@ -82,6 +82,12 @@ The spec needs role-aware navigation, tenant scoping and many new screens.
 - Port the useful pieces: the Sri Lanka district map and the charger console layout.
 - The old client stays as the Phase 0 test tool until the new portal replaces it.
 
+**Status (2026-11-22): Started** as `plugev-admin/`, brought forward to Phase 1 so administrators can sign in with MFA.
+- Stack: Vite 7, React 19, TypeScript 5.9, React Router 7, lucide icons; plain CSS with the old theme's colours. No component library yet: the screens so far need only a few components.
+- **Design direction (client):** keep the Phase 0 look (dark navy backdrop, transparent sidebar with the same menu, PLUG EV logo banner on sign-in, translucent widgets, orange active item) and modernize the components. Not a new design.
+- Typed API client written by hand for now; generate it from the OpenAPI spec once the screens use more endpoints.
+- The refresh token is kept in `localStorage` so reloads and tabs stay signed in. Refreshes are serialised across tabs (Web Locks) because the API treats a reused refresh token as theft. A Content Security Policy limits scripts to the site and requests to the API. An httpOnly cookie would be stronger; revisit when hosting fixes the domains.
+
 ---
 
 ## ADR-006 – Hosting, secrets and environments

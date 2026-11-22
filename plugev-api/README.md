@@ -9,7 +9,11 @@ Phase 1 foundation of the platform described in the technical specification:
 - **API standards**: `/api/v1`, OpenAPI, one error format, correlation IDs, pagination (spec 9).
 - **Ops**: health and readiness probes, structured JSON logs (spec 13.2).
 
-Networks and stations exist only so tenants and station scope can be tested. Full station, EVSE and connector management is Phase 2.
+Networks and stations are minimal: a network has a name, currency, time zone and status; a station has a name and status,
+and the networks list includes each network's station count. Station details, EVSEs and connectors are Phase 2.
+
+- A suspended or archived network, or an inactive station, takes away the access of the admins scoped to it.
+- So only Network Admins and Super Admins change a station's status (`PATCH /stations/:id`); a Station Admin can rename theirs.
 
 Stack (ADR-002, ADR-003): Node 24, NestJS 11, TypeScript, PostgreSQL, TypeORM migrations, Argon2id, pino.
 
@@ -53,7 +57,7 @@ curl -s localhost:4000/api/v1/users/me -H "authorization: Bearer <accessToken>"
 
 Or use the **Authorize** button in the docs page.
 
-Typical first steps as Super Admin:
+Typical first steps as Super Admin (or use the admin portal: **Stations**, then **User Management**):
 1. `POST /networks`
 2. `POST /stations`
 3. `POST /users` to invite a Network Admin.
@@ -128,7 +132,7 @@ npm test
 |---|---|---|
 | SUPER_ADMIN | Platform | Everything. Created only with the CLI command or by another Super Admin. |
 | NETWORK_ADMIN | One network | Edit own network; create stations; invite and manage Station Admins in the network; read users and audit log of the network. Cannot suspend networks. |
-| STATION_ADMIN | Assigned stations | Read and update assigned stations. Remote commands only if delegated later. |
+| STATION_ADMIN | Assigned stations | Read and rename assigned stations (not change their status). Remote commands only if delegated later. |
 | EV_USER | Own account | Customer app, Phase 4. |
 
 The permission catalogue is in `src/access/permissions.ts`; the database copy is seeded by migration.

@@ -25,13 +25,16 @@ Phase 1 started on 2026-11-21, alongside the remaining Phase 0 items (the real-c
 | E1.5 Audit log | Append-only, enforced by database triggers; actor, roles, scope, correlation id, outcome | ✅ |
 | E1.6 API framework | `/api/v1`, OpenAPI at `/api/docs`, error format, correlation ids, pagination, validation | ✅. Idempotency keys come with the first endpoints that need them (sessions, payments) |
 | E1.7 Observability | JSON logs with correlation ids, liveness/readiness | 🟡 Metrics, tracing and alerting wait for hosting |
+| Admin portal (ADR-005) | New `plugev-admin` app in the old portal's look: sign-in, MFA setup and verification, recovery codes, forgotten password, invitation links, dashboard, My Profile (MFA management), User Management (invite, roles, suspend/reactivate/deactivate, MFA reset), Stations (networks and stations: list, add, edit, status) | 🟡 Sign-in, profile, User Management and Stations done. Other screens follow (“Soon” in the menu) |
 
 ## Next increments
 
-1. **New portal with a modern UI** (ADR-005), signing in against `plugev-api` (including MFA). It replaces the outdated template look and its hard-coded login.
+1. **Admin portal screens**, keeping the Phase 0 look (user's direction 2026-11-22: same design, modernized components): the charger console moves over from `plugev-portal` next. Chargers, connectors and QR codes are planned in [../phase-2/README.md](../phase-2/README.md). Accounts (network finance) waits for the payment work.
 2. **Hosting decision** (ADR-006: Azure or AWS), then Dev/QA environments, a secrets manager and deployment from CI.
 3. Connect the gateway (`plugev-server`) to the core: charger registry in PostgreSQL, canonical events (ADR-004/007). This begins Phase 3 work.
 
 ## How to run
 
-See [plugev-api/README.md](../../plugev-api/README.md).
+- API: [plugev-api/README.md](../../plugev-api/README.md)
+- Admin portal: [plugev-admin/README.md](../../plugev-admin/README.md)
+- Everything with Docker: [instructions.txt](../../instructions.txt)

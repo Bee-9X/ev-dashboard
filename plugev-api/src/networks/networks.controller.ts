@@ -5,8 +5,8 @@ import { Access, RequirePermissions } from '../access/decorators';
 import { P } from '../access/permissions';
 import { Page, PageQueryDto } from '../common/pagination';
 import { NetworkEntity, StationEntity } from '../database/entities';
-import { CreateNetworkDto, CreateStationDto, StationListQueryDto, UpdateNetworkDto } from './networks.dto';
-import { NetworksService } from './networks.service';
+import { CreateNetworkDto, CreateStationDto, StationListQueryDto, UpdateNetworkDto, UpdateStationDto } from './networks.dto';
+import { NetworksService, NetworkWithCount } from './networks.service';
 
 @ApiTags('Networks')
 @ApiBearerAuth()
@@ -16,7 +16,7 @@ export class NetworksController {
 
     @Get()
     @RequirePermissions(P.NETWORK_READ)
-    list(@Access() ctx: AccessContext, @Query() q: PageQueryDto): Promise<Page<NetworkEntity>> {
+    list(@Access() ctx: AccessContext, @Query() q: PageQueryDto): Promise<Page<NetworkWithCount>> {
         return this.networks.list(ctx, q);
     }
 
@@ -65,5 +65,15 @@ export class StationsController {
     @RequirePermissions(P.STATION_READ)
     get(@Access() ctx: AccessContext, @Param('stationId', ParseUUIDPipe) id: string): Promise<StationEntity> {
         return this.networks.getStation(ctx, id);
+    }
+
+    @Patch(':stationId')
+    @RequirePermissions(P.STATION_UPDATE)
+    update(
+        @Access() ctx: AccessContext,
+        @Param('stationId', ParseUUIDPipe) id: string,
+        @Body() dto: UpdateStationDto,
+    ): Promise<StationEntity> {
+        return this.networks.updateStation(ctx, id, dto);
     }
 }
