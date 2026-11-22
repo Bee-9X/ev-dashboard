@@ -11,7 +11,8 @@ Phase 1 started on 2026-11-21, alongside the remaining Phase 0 items (the real-c
 | PostgreSQL as the system of record (ADR-002) | **Accepted** 2026-11-21 |
 | New backend in this repository: `plugev-api/` | **Accepted** 2026-11-21 |
 | NestJS + TypeScript (ADR-003) | Used as proposed (NestJS 11; see ADR-003 note) |
-| Hosting provider (ADR-006) | **Open**. Phase 1 runs locally, with CI on GitHub Actions |
+| Hosting provider (ADR-006) | **Azure or AWS**, not decided. Code stays cloud-neutral; runs locally, with CI on GitHub Actions |
+| Email provider | **Open**. API sends via SMTP so any provider fits |
 
 ## Progress
 
@@ -19,7 +20,7 @@ Phase 1 started on 2026-11-21, alongside the remaining Phase 0 items (the real-c
 |---|---|---|
 | E1.1 Environments and CI/CD | GitHub Actions: tests and dependency audit for all three apps on every PR | 🟡 CI done. Environments wait for the hosting decision |
 | E1.2 Database and migrations | PostgreSQL schema: networks, stations, users, roles, permissions, assignments, tokens, login events, audit; versioned migrations | ✅ |
-| E1.3 Identity | Login, refresh rotation with reuse detection, logout, reset, invitations, lockout, account status, login events | ✅, except **MFA (FR AUTH 003)**, next increment |
+| E1.3 Identity | Login, refresh rotation with reuse detection, logout, reset, invitations, lockout, account status, login events, **MFA** (TOTP, recovery codes, required per role, admin reset) | ✅ |
 | E1.4 Authorization | RBAC, network/station scope from the token's user, deny by default, 404 outside scope | ✅ |
 | E1.5 Audit log | Append-only, enforced by database triggers; actor, roles, scope, correlation id, outcome | ✅ |
 | E1.6 API framework | `/api/v1`, OpenAPI at `/api/docs`, error format, correlation ids, pagination, validation | ✅. Idempotency keys come with the first endpoints that need them (sessions, payments) |
@@ -27,9 +28,9 @@ Phase 1 started on 2026-11-21, alongside the remaining Phase 0 items (the real-c
 
 ## Next increments
 
-1. **MFA for administrators** (FR AUTH 003): TOTP enrolment, verification at login, recovery codes, configurable as mandatory for privileged roles.
-2. **Portal login against `plugev-api`**: replace the template's hard-coded login. This starts the new portal (ADR-005).
-3. **Hosting decision** (ADR-006), then Dev/QA environments, a secrets manager and deployment from CI.
+1. **SMTP email and Docker images**, so the API fits either cloud (ADR-006) and any email provider.
+2. **New portal with a modern UI** (ADR-005), signing in against `plugev-api` (including MFA). It replaces the outdated template look and its hard-coded login.
+3. **Hosting decision** (ADR-006: Azure or AWS), then Dev/QA environments, a secrets manager and deployment from CI.
 4. Connect the gateway (`plugev-server`) to the core: charger registry in PostgreSQL, canonical events (ADR-004/007). This begins Phase 3 work.
 
 ## How to run

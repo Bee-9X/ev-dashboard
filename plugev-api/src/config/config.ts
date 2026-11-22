@@ -18,6 +18,9 @@ const schema = z.object({
     PASSWORD_RESET_TTL_MIN: int.min(5).max(1440).default(30),
     INVITE_TTL_HOURS: int.min(1).max(720).default(72),
     AUTH_RATE_LIMIT_PER_MIN: int.min(1).max(100000).default(10),
+    MFA_ENCRYPTION_KEY: z.string({ error: 'MFA_ENCRYPTION_KEY is required' })
+        .refine(v => Buffer.from(v, 'base64').length === 32, 'MFA_ENCRYPTION_KEY must be 32 random bytes, base64 encoded'),
+    MFA_ISSUER: z.string().min(1).max(50).default('PLUG EV'),
     CORS_ORIGINS: z.string().default('http://localhost:3000'),
     PORTAL_URL: z.url().default('http://localhost:3000'),
     TRUST_PROXY: bool.default(false),
@@ -38,6 +41,8 @@ export interface AppConfig {
     passwordResetTtlMin: number;
     inviteTtlHours: number;
     authRateLimitPerMin: number;
+    mfaEncryptionKey: string;
+    mfaIssuer: string;
     corsOrigins: string[];
     portalUrl: string;
     trustProxy: boolean;
@@ -70,6 +75,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
         passwordResetTtlMin: e.PASSWORD_RESET_TTL_MIN,
         inviteTtlHours: e.INVITE_TTL_HOURS,
         authRateLimitPerMin: e.AUTH_RATE_LIMIT_PER_MIN,
+        mfaEncryptionKey: e.MFA_ENCRYPTION_KEY,
+        mfaIssuer: e.MFA_ISSUER,
         corsOrigins: e.CORS_ORIGINS.split(',').map(s => s.trim()).filter(Boolean),
         portalUrl: e.PORTAL_URL.replace(/\/+$/, ''),
         trustProxy: e.TRUST_PROXY,

@@ -2,9 +2,10 @@ import type { DataSourceOptions } from 'typeorm';
 import type { AppConfig } from '../config/config';
 import { ENTITIES } from './entities';
 import { InitialSchema1763740800000 } from './migrations/1763740800000-InitialSchema';
+import { Mfa1763827200000 } from './migrations/1763827200000-Mfa';
 
 /** Migrations are listed explicitly so the same set runs from ts-node, Jest and the compiled build. */
-export const MIGRATIONS = [InitialSchema1763740800000];
+export const MIGRATIONS = [InitialSchema1763740800000, Mfa1763827200000];
 
 export function buildDataSourceOptions(config: Pick<AppConfig, 'databaseUrl' | 'dbSsl' | 'dbRunMigrations'> & { nodeEnv?: string }): DataSourceOptions {
     return {

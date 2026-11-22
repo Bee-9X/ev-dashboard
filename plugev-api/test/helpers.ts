@@ -33,8 +33,12 @@ export interface TestApp {
     close(): Promise<void>;
 }
 
-/** Wipes the schema, then boots the real app (migrations run on init). */
-export async function createTestApp(opts: { env?: Record<string, string>; controllers?: Type[] } = {}): Promise<TestApp> {
+/**
+ * Wipes the schema, then boots the real app (migrations run on init).
+ * MFA policy is switched off unless `requireMfa` is set, so suites about other features can sign in
+ * with a password only; the MFA suite keeps the shipped policy.
+ */
+export async function createTestApp(opts: { env?: Record<string, string>; controllers?: Type[]; requireMfa?: boolean } = {}): Promise<TestApp> {
     await resetDatabase();
     const saved: Record<string, string | undefined> = {};
     for (const [k, v] of Object.entries(opts.env ?? {})) {
@@ -49,10 +53,12 @@ export async function createTestApp(opts: { env?: Record<string, string>; contro
         const app = moduleRef.createNestApplication<NestExpressApplication>(APP_OPTIONS);
         configureApp(app);
         await app.init();
+        const db = app.get(DataSource);
+        if (!opts.requireMfa) await db.query('UPDATE roles SET mfa_required = false');
         return {
             app,
             http: request(app.getHttpServer()),
-            db: app.get(DataSource),
+            db,
             mail,
             close: () => app.close(),
         };

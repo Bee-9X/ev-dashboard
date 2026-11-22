@@ -1,11 +1,11 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { AccessContext } from '../access/access-context';
 import { Access, Authenticated, RequirePermissions } from '../access/decorators';
 import { P } from '../access/permissions';
 import { Page } from '../common/pagination';
 import {
-    InviteUserDto, MeView, RoleTargetDto, UpdateUserStatusDto, UserListQueryDto, UserView,
+    InviteUserDto, MeView, ResetMfaDto, RoleTargetDto, UpdateUserStatusDto, UserListQueryDto, UserView,
 } from './users.dto';
 import { UsersService } from './users.service';
 
@@ -49,6 +49,18 @@ export class UsersController {
         @Body() dto: UpdateUserStatusDto,
     ): Promise<UserView> {
         return this.users.updateStatus(ctx, userId, dto);
+    }
+
+    /** Removes the user's MFA so they can set it up again (lost phone). Ends their sessions. */
+    @Post(':userId/mfa/reset')
+    @HttpCode(200)
+    @RequirePermissions(P.USER_UPDATE_STATUS)
+    resetMfa(
+        @Access() ctx: AccessContext,
+        @Param('userId', ParseUUIDPipe) userId: string,
+        @Body() dto: ResetMfaDto,
+    ): Promise<UserView> {
+        return this.users.resetMfa(ctx, userId, dto);
     }
 
     @Post(':userId/roles')
