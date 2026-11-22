@@ -25,6 +25,18 @@ const schema = z.object({
     PORTAL_URL: z.url().default('http://localhost:3000'),
     TRUST_PROXY: bool.default(false),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
+    MAIL_TRANSPORT: z.enum(['log', 'smtp']).default('log'),
+    MAIL_FROM: z.string().min(3).max(200).default('PLUG EV <no-reply@plugev.local>'),
+    SMTP_HOST: z.string().max(255).optional(),
+    SMTP_PORT: int.min(1).max(65535).default(587),
+    SMTP_SECURE: bool.default(false),
+    SMTP_REQUIRE_TLS: bool.default(true),
+    SMTP_USER: z.string().max(255).optional(),
+    SMTP_PASSWORD: z.string().max(1000).optional(),
+}).superRefine((e, ctx) => {
+    if (e.MAIL_TRANSPORT === 'smtp' && !e.SMTP_HOST) {
+        ctx.addIssue({ code: 'custom', path: ['SMTP_HOST'], message: 'SMTP_HOST is required when MAIL_TRANSPORT=smtp' });
+    }
 });
 
 export interface AppConfig {
@@ -47,6 +59,11 @@ export interface AppConfig {
     portalUrl: string;
     trustProxy: boolean;
     logLevel: string;
+    mail: {
+        transport: 'log' | 'smtp';
+        from: string;
+        smtp: { host: string; port: number; secure: boolean; requireTls: boolean; user?: string; password?: string };
+    };
 }
 
 export const APP_CONFIG = Symbol('APP_CONFIG');
@@ -81,5 +98,17 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
         portalUrl: e.PORTAL_URL.replace(/\/+$/, ''),
         trustProxy: e.TRUST_PROXY,
         logLevel: e.LOG_LEVEL,
+        mail: {
+            transport: e.MAIL_TRANSPORT,
+            from: e.MAIL_FROM,
+            smtp: {
+                host: e.SMTP_HOST ?? '',
+                port: e.SMTP_PORT,
+                secure: e.SMTP_SECURE,
+                requireTls: e.SMTP_REQUIRE_TLS,
+                user: e.SMTP_USER,
+                password: e.SMTP_PASSWORD,
+            },
+        },
     };
 }

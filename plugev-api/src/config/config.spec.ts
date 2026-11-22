@@ -22,6 +22,13 @@ describe('loadConfig', () => {
         );
     });
 
+    it('mail: log by default; SMTP needs a host', () => {
+        expect(loadConfig(base).mail).toMatchObject({ transport: 'log', from: 'PLUG EV <no-reply@plugev.local>' });
+        expect(() => loadConfig({ ...base, MAIL_TRANSPORT: 'smtp' })).toThrow(/SMTP_HOST is required/);
+        const c = loadConfig({ ...base, MAIL_TRANSPORT: 'smtp', SMTP_HOST: 'email-smtp.ap-south-1.amazonaws.com', SMTP_USER: 'u', SMTP_PASSWORD: 'p' });
+        expect(c.mail.smtp).toEqual({ host: 'email-smtp.ap-south-1.amazonaws.com', port: 587, secure: false, requireTls: true, user: 'u', password: 'p' });
+    });
+
     it('parses lists and booleans', () => {
         const c = loadConfig({ ...base, CORS_ORIGINS: 'https://a.lk, https://b.lk', TRUST_PROXY: 'true', PORTAL_URL: 'https://portal.lk/' });
         expect(c.corsOrigins).toEqual(['https://a.lk', 'https://b.lk']);
