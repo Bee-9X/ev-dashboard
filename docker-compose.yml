@@ -3,9 +3,10 @@
 #   cp compose.env.example .env      # then fill in the secrets
 #   docker compose up -d --build
 #
-#   portal   http://localhost:8080
+#   admin    http://localhost:8080          (new admin portal: sign-in, MFA, profile)
 #   API      http://localhost:4000/api/v1   (docs: http://localhost:4000/api/docs)
-#   gateway  http://localhost:3003          (OCPP chargers and the Phase 0 console)
+#   gateway  http://localhost:3003          (OCPP chargers)
+#   portal   http://localhost:8081          (Phase 0 portal with the charger test console)
 #
 # Production uses the same images with managed PostgreSQL/MongoDB and a secrets manager (ADR-006).
 
@@ -47,6 +48,7 @@ services:
       DATABASE_URL: postgres://plugev:${POSTGRES_PASSWORD}@postgres:5432/plugev
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set JWT_ACCESS_SECRET in .env}
       MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:?set MFA_ENCRYPTION_KEY in .env}
+      # The admin portal: allowed to call the API, and the base of the links in emails
       CORS_ORIGINS: ${PORTAL_URL:-http://localhost:8080}
       PORTAL_URL: ${PORTAL_URL:-http://localhost:8080}
       MAIL_TRANSPORT: ${MAIL_TRANSPORT:-log}
@@ -59,6 +61,21 @@ services:
     ports:
       - "4000:4000"
 
+  admin:
+    build:
+      context: ./plugev-admin
+      args:
+        # Read by the browser, so these must be addresses the browser can reach.
+        VITE_API_URL: ${API_PUBLIC_URL:-http://localhost:4000}/api/v1
+        VITE_CONSOLE_URL: ${CONSOLE_URL:-http://localhost:8081}
+    environment:
+      # The only API the page may call (Content Security Policy)
+      API_ORIGIN: ${API_PUBLIC_URL:-http://localhost:4000}
+    depends_on:
+      - api
+    ports:
+      - "8080:8080"
+
   gateway:
     build: ./plugev-server
     depends_on:
@@ -67,12 +84,13 @@ services:
     environment:
       MONGODB_URI: mongodb://mongo:27017/plugev
       API_KEY: ${GATEWAY_API_KEY:-}
-      CORS_ORIGINS: ${PORTAL_URL:-http://localhost:8080}
+      CORS_ORIGINS: ${CONSOLE_URL:-http://localhost:8081}
       LOG_LEVEL: ${LOG_LEVEL:-info}
     ports:
       - "3003:3003"
       - "3002:3002"
 
+  # Phase 0 portal: kept for the charger test console until those screens move to the admin portal
   portal:
     build:
       context: ./plugev-portal
@@ -83,7 +101,7 @@ services:
     depends_on:
       - gateway
     ports:
-      - "8080:8080"
+      - "8081:8080"
 
 volumes:
   postgres-data:

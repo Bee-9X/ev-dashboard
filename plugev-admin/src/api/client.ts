@@ -1,0 +1,151 @@
+import { session } from './session';
+import type {
+    ApiErrorBody, EnrolledSignIn, LoginResult, Me, MfaSetup, MfaStatus, SignedIn, TokenResponse,
+} from './types';
+
+export const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api/v1').replace(/\/+$/, '');
+
+export class ApiError extends Error {
+    constructor(
+        readonly status: number,
+        readonly code: string,
+        message: string,
+        readonly details?: unknown,
+        readonly correlationId?: string,
+    ) {
+        super(message);
+        this.name = 'ApiError';
+    }
+}
+
+interface RequestOptions {
+    method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+    body?: unknown;
+    /** Send the access token (default true). Sign-in endpoints pass false. */
+    auth?: boolean;
+}
+
+async function send(path: string, opts: RequestOptions, token: string | null): Promise<Response> {
+    const headers: Record<string, string> = { Accept: 'application/json' };
+    if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
+    if (token) headers.Authorization = `Bearer ${token}`;
+    try {
+        return await fetch(`${API_URL}${path}`, {
+            method: opts.method ?? 'GET',
+            headers,
+            body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
+            // account data and permissions must always be current, never a cached copy
+            cache: 'no-store',
+        });
+    } catch {
+        throw new ApiError(0, 'NETWORK_ERROR', 'Cannot reach the PLUG EV server. Check your connection and try again.');
+    }
+}
+
+async function parse<T>(res: Response): Promise<T> {
+    if (res.status === 204 || res.status === 202) return undefined as T;
+    const text = await res.text();
+    let data: unknown = undefined;
+    if (text) {
+        try {
+            data = JSON.parse(text);
+        } catch {
+            data = undefined;
+        }
+    }
+    if (res.ok) return data as T;
+    const err = (data as ApiErrorBody | undefined)?.error;
+    throw new ApiError(
+        res.status,
+        err?.code ?? `HTTP_${res.status}`,
+        err?.message ?? `The server returned an error (${res.status}).`,
+        err?.details,
+        err?.correlationId,
+    );
+}
+
+let inflight: Promise<string | null> | null = null;
+
+/**
+ * Gets a new access token with the stored refresh token. Returns null (and ends the session) when
+ * the refresh token is no longer accepted. Concurrent callers share one request.
+ */
+export function refreshAccessToken(): Promise<string | null> {
+    if (!inflight) {
+        inflight = session
+            .withRefreshLock(async () => {
+                // another tab may have refreshed while we waited for the lock: always use the latest token
+                const refreshToken = session.getRefreshToken();
+                if (!refreshToken) return null;
+                const res = await send('/auth/refresh', { method: 'POST', body: { refreshToken } }, null);
+                if (res.status === 401 || res.status === 403) {
+                    session.clear();
+                    return null;
+                }
+                const tokens = await parse<TokenResponse>(res);
+                session.store(tokens);
+                return tokens.accessToken;
+            })
+            .finally(() => {
+                inflight = null;
+            });
+    }
+    return inflight;
+}
+
+export async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
+    if (opts.auth === false) return parse<T>(await send(path, opts, null));
+
+    let token = session.getAccessToken() ?? (await refreshAccessToken());
+    if (!token) throw new ApiError(401, 'UNAUTHENTICATED', 'Your session has ended. Please sign in again.');
+
+    try {
+        return await parse<T>(await send(path, opts, token));
+    } catch (err) {
+        // Only a rejected access token is retried. Other 401s (e.g. INVALID_MFA_CODE) are answers,
+        // and resending them would count as a second failed attempt.
+        if (!(err instanceof ApiError) || err.status !== 401 || !TOKEN_ERRORS.has(err.code)) throw err;
+    }
+    token = await refreshAccessToken();
+    if (!token) throw new ApiError(401, 'UNAUTHENTICATED', 'Your session has ended. Please sign in again.');
+    return parse<T>(await send(path, opts, token));
+}
+
+const TOKEN_ERRORS = new Set(['TOKEN_INVALID', 'UNAUTHENTICATED']);
+
+export const api = {
+    login: (email: string, password: string) =>
+        request<LoginResult>('/auth/login', { method: 'POST', body: { email, password }, auth: false }),
+    verifyMfa: (mfaToken: string, input: { code: string } | { recoveryCode: string }) =>
+        request<SignedIn>('/auth/mfa/verify', { method: 'POST', body: { mfaToken, ...input }, auth: false }),
+    startEnrollment: (mfaToken: string) =>
+        request<MfaSetup>('/auth/mfa/enroll', { method: 'POST', body: { mfaToken }, auth: false }),
+    confirmEnrollment: (mfaToken: string, code: string) =>
+        request<EnrolledSignIn>('/auth/mfa/enroll/confirm', { method: 'POST', body: { mfaToken, code }, auth: false }),
+    logout: (refreshToken: string) =>
+        request<void>('/auth/logout', { method: 'POST', body: { refreshToken }, auth: false }),
+    requestPasswordReset: (email: string) =>
+        request<void>('/auth/password/reset', { method: 'POST', body: { email }, auth: false }),
+    confirmPasswordReset: (token: string, newPassword: string) =>
+        request<void>('/auth/password/reset/confirm', { method: 'POST', body: { token, newPassword }, auth: false }),
+
+    me: () => request<Me>('/users/me'),
+    mfaStatus: () => request<MfaStatus>('/users/me/mfa'),
+    mfaSetup: () => request<MfaSetup>('/users/me/mfa/setup', { method: 'POST' }),
+    mfaConfirm: (code: string) => request<{ recoveryCodes: string[] }>('/users/me/mfa/confirm', { method: 'POST', body: { code } }),
+    mfaRegenerateCodes: (code: string) =>
+        request<{ recoveryCodes: string[] }>('/users/me/mfa/recovery-codes', { method: 'POST', body: { code } }),
+    mfaDisable: (code: string) => request<void>('/users/me/mfa', { method: 'DELETE', body: { code } }),
+};
+
+/** A sentence for the user; the correlation ID helps support find the request in the logs. */
+export function describeError(err: unknown): string {
+    if (err instanceof ApiError) {
+        if (err.code === 'RATE_LIMITED') return 'Too many attempts. Wait a minute and try again.';
+        if (err.status >= 500) {
+            return `Something went wrong on the server.${err.correlationId ? ` Reference: ${err.correlationId}` : ''}`;
+        }
+        return err.message;
+    }
+    return 'Something went wrong. Please try again.';
+}

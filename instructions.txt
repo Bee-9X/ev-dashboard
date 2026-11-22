@@ -1,17 +1,28 @@
 Phase 0 status, test plan and decisions: see docs/phase-0/README.md
 Phase 1 status: see docs/phase-1/README.md
 
-The repository has three apps:
+The repository has four apps:
   plugev-api     core API (Phase 1: users, roles, networks, audit) - NestJS + PostgreSQL. See plugev-api/README.md
   plugev-server  charger gateway (OCPP 1.5/1.6 SOAP and 1.6J) - Phase 0 PoC, MongoDB
-  plugev-portal  admin portal (Phase 0 template + charger test console)
+  plugev-admin   new admin portal (sign-in with MFA, profile) - React + TypeScript. See plugev-admin/README.md
+  plugev-portal  Phase 0 portal (old template + charger test console), being replaced by plugev-admin
 
 Run everything with Docker (needs Docker Desktop):
   copy compose.env.example to .env, fill in the three secrets, then:
     docker compose up -d --build
-  portal http://localhost:8080 | API http://localhost:4000/api/docs | gateway http://localhost:3003
+  admin portal http://localhost:8080 | API http://localhost:4000/api/docs | gateway http://localhost:3003
+  Phase 0 portal (charger console) http://localhost:8081
+  Create the first Super Admin:
+    docker compose exec api node dist/cli/create-super-admin.js --email you@example.com --name "Your Name"
   Emails (invitations, password resets) are not sent yet: find the links with
     docker compose logs api
+
+
+Admin portal without Docker
+
+1. Start plugev-api (plugev-api/README.md) and create a Super Admin with npm run seed:super-admin.
+2. cd plugev-admin, then npm install and npm run dev.
+3. Open http://localhost:3000 and sign in. The first sign-in sets up two-step verification.
 
 
 Server SOAP (Back end / charger gateway)
@@ -32,7 +43,7 @@ Plug EV Client (Front end)
 1. cd plugev-portal
 2. Copy .env.example to .env. If the backend has API_KEY set, put the same value in REACT_APP_API_KEY.
 3. 'npm install --force' (default npm install might not work due to package conflicts),
-   then 'npm start'.
+   then 'npm start'. If the new admin portal is already on port 3000, accept the offer to use another port.
 
 The "Charger Station Information" page is the charger test console: live status, all remote
 commands, sessions, OCPP message log and the Phase 0 checklist.
