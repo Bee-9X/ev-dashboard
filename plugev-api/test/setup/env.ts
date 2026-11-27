@@ -11,3 +11,5 @@ process.env.LOGIN_MAX_FAILED_ATTEMPTS = '5';
 process.env.LOGIN_LOCK_MINUTES = '15';
 process.env.PORTAL_URL = 'http://portal.test';
 process.env.CORS_ORIGINS = 'http://portal.test';
+// the charging suites switch it on with OCPP_PORT=0 (any free port)
+process.env.OCPP_ENABLED = 'false';

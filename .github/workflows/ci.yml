@@ -127,16 +127,18 @@ jobs:
         run: |
           set -euo pipefail
           curl -fsS localhost:4000/api/v1/health/ready
-          curl -fsS localhost:3003/api/health
+          # Chargers connect to the API's charging module
+          curl -fsS localhost:3003/health
           # Admin portal: page served, with its Content Security Policy pointing at the API
           admin=$(curl -fsS localhost:8080/login)
           [[ "$admin" == *'<div id="root">'* ]]
           csp=$(curl -fsSI localhost:8080/ | tr -d '\r' | grep -i '^content-security-policy:')
           echo "$csp"
           [[ "$csp" == *"connect-src 'self' http://localhost:4000"* ]]
-          # Phase 0 portal (charger console)
-          portal=$(curl -fsS localhost:8081/)
-          [[ "$portal" == *'<div id="root">'* ]]
+          # A charger that is not registered is turned away
+          boot=$(curl -fsS -X POST localhost:3003/ocpp/ci-unknown -H 'content-type: application/soap+xml' \
+            --data '<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:cs="urn://Ocpp/Cs/2012/06/"><s:Header><cs:chargeBoxIdentity>ci-unknown</cs:chargeBoxIdentity></s:Header><s:Body><cs:bootNotificationRequest><cs:chargePointVendor>CI</cs:chargePointVendor><cs:chargePointModel>Smoke</cs:chargePointModel></cs:bootNotificationRequest></s:Body></s:Envelope>')
+          [[ "$boot" == *'<status>Rejected</status>'* ]]
           # The browser at the admin portal may call the API (CORS)
           cors=$(curl -fsS -o /dev/null -D - -X OPTIONS localhost:4000/api/v1/auth/login \
             -H 'Origin: http://localhost:8080' -H 'Access-Control-Request-Method: POST' | tr -d '\r')

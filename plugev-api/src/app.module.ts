@@ -19,6 +19,7 @@ import { MailModule } from './mail/mail.module';
 import { NetworksModule } from './networks/networks.module';
 import { EvsesModule } from './evses/evses.module';
 import { GatewayModule } from './gateway/gateway.module';
+import { ChargingModule } from './charging/charging.module';
 import { UsersModule } from './users/users.module';
 
 export const JWT_ISSUER = 'plugev-api';
@@ -77,6 +78,7 @@ export const JWT_AUDIENCE = 'plugev';
         NetworksModule,
         EvsesModule,
         GatewayModule,
+        ChargingModule,
     ],
     controllers: [HealthController],
     providers: [
