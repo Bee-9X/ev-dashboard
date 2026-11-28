@@ -1,14 +1,21 @@
 {
     // PLUG EV dev setup inside VS Code (see HOW-TO-RUN.md, section B).
-    // Ctrl+Shift+B, or Terminal > Run Task > "PLUG EV: start". Stop with the task "PLUG EV: stop".
+    // Ctrl+Shift+B, or Terminal > Run Task > "PLUG EV: start" (with the charger simulator). Stop with "PLUG EV: stop".
     "version": "2.0.0",
     "tasks": [
         {
             "label": "PLUG EV: start",
-            "detail": "Checks, then the API, ngrok and the admin portal, each in its own terminal",
+            "detail": "Checks, then the API, ngrok, the admin portal and the charger simulator SIM-001, each in its own terminal",
+            "dependsOrder": "sequence",
+            "dependsOn": ["PLUG EV: checks", "PLUG EV: run all with simulator"],
+            "group": { "kind": "build", "isDefault": true },
+            "problemMatcher": []
+        },
+        {
+            "label": "PLUG EV: start without simulator",
+            "detail": "The same, without the charger simulator",
             "dependsOrder": "sequence",
             "dependsOn": ["PLUG EV: checks", "PLUG EV: run all"],
-            "group": { "kind": "build", "isDefault": true },
             "problemMatcher": []
         },
         {
@@ -23,6 +30,11 @@
         {
             "label": "PLUG EV: run all",
             "dependsOn": ["PLUG EV: API", "PLUG EV: ngrok", "PLUG EV: admin portal", "PLUG EV: status"],
+            "problemMatcher": []
+        },
+        {
+            "label": "PLUG EV: run all with simulator",
+            "dependsOn": ["PLUG EV: API", "PLUG EV: ngrok", "PLUG EV: admin portal", "PLUG EV: simulator", "PLUG EV: status (with simulator)"],
             "problemMatcher": []
         },
         {
@@ -65,6 +77,28 @@
             }
         },
         {
+            "label": "PLUG EV: simulator",
+            "detail": "OCPP 1.6 (JSON) charger simulator SIM-001 with 2 connectors; retries until the API is up",
+            "type": "shell",
+            "command": "npm run simulate -- --url ws://localhost:3003/ocpp/SIM-001 --connectors 2",
+            "options": { "cwd": "${workspaceFolder}/plugev-api" },
+            "isBackground": true,
+            "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+            "problemMatcher": {
+                "owner": "plugev",
+                "pattern": { "regexp": "^__plugev_never__$" },
+                "background": { "activeBegins": true, "beginsPattern": "^__plugev_never__$", "endsPattern": "Connected to" }
+            }
+        },
+        {
+            "label": "PLUG EV: status (with simulator)",
+            "type": "process",
+            "command": "powershell.exe",
+            "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/scripts/start-dev.ps1", "-StatusOnly", "-Simulator"],
+            "presentation": { "reveal": "always", "focus": true, "panel": "dedicated", "clear": true },
+            "problemMatcher": []
+        },
+        {
             "label": "PLUG EV: status",
             "detail": "Waits for the apps, opens the portal, shows the charger address",
             "type": "process",
@@ -75,7 +109,7 @@
         },
         {
             "label": "PLUG EV: stop",
-            "detail": "Stops the API, the admin portal and ngrok",
+            "detail": "Stops the API, the admin portal, ngrok and the charger simulator",
             "type": "process",
             "command": "powershell.exe",
             "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/scripts/stop-dev.ps1"],

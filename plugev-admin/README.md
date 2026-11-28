@@ -32,6 +32,12 @@ Built so far:
     network pages list their own latest sessions
   - a connector that is charging shows **Charging now** (duration, energy, power, battery), refreshed every 15 seconds
   - session page (`/stations/sessions/:id`): where and when, how it ended, meter start and stop, every meter reading
+  - remote commands on the charger page:
+    - per connector: start and stop charging, unlock, (un)availability
+    - *Remote Control*: soft and hard reset, charger availability, and the recent commands with the charger's answer
+      and its confirmation
+    - *Configuration*: read and change the charger's settings
+    - *Command address* for SOAP chargers (*Edit charger*)
   - a Station Admin sees only their own stations
 - The other menu items from the old portal (Accounts, TopUp Accounts, Remote Start, My Recent Activity) are listed as "Soon"
   and move over one by one.

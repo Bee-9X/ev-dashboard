@@ -10,6 +10,8 @@
     -NoBrowser    don't open the portal in the browser
     -ChargerId c1 the Charger ID used in the URL it shows (default c1)
     -NoWindowsTerminal  separate PowerShell windows instead of Windows Terminal tabs
+    -NoSimulator  don't start the charger simulator (OCPP 1.6 JSON, 2 connectors), which otherwise gets its own tab
+    -SimulatorId SIM-001  the simulator's Charger ID (default SIM-001); register it in the portal first
     -CheckOnly    only the checks (tools, .env, PostgreSQL, free ports); used by the VS Code task
     -StatusOnly   only wait for the apps and show the summary; used by the VS Code task
 #>
@@ -19,10 +21,19 @@ param(
     [switch]$NoWindowsTerminal,
     [switch]$CheckOnly,
     [switch]$StatusOnly,
-    [string]$ChargerId = 'c1'
+    [string]$ChargerId = 'c1',
+    [switch]$NoSimulator,
+    [switch]$Simulator, # kept for the VS Code status task and old habits: the simulator is on by default
+    [string]$SimulatorId = 'SIM-001'
 )
 
 $ErrorActionPreference = 'Stop'
+$Simulator = -not $NoSimulator
+# it goes into a command line and a URL: keep it to the characters a Charger ID may have
+if ($SimulatorId -notmatch '^[A-Za-z0-9._:-]{1,48}$') {
+    Write-Host "`n  XX  -SimulatorId must be 1-48 letters, digits or . _ : - (got '$SimulatorId')`n" -ForegroundColor Red
+    exit 1
+}
 $root = Split-Path -Parent $PSScriptRoot
 $api = Join-Path $root 'plugev-api'
 $admin = Join-Path $root 'plugev-admin'
@@ -127,6 +138,8 @@ if (-not $StatusOnly) {
     )
     if (-not $NoNgrok) { $tabs += @{ Title = 'ngrok'; Dir = $root; Cmd = 'ngrok http 3003 --scheme http' } }
     $tabs += @{ Title = 'Admin portal'; Dir = $admin; Cmd = 'npm run dev' }
+    # it retries every few seconds until the API's charger port is up
+    if ($Simulator) { $tabs += @{ Title = 'Simulator'; Dir = $api; Cmd = "npm run simulate -- --url ws://localhost:3003/ocpp/$SimulatorId --connectors 2" } }
 
     # The tabs inherit this script's environment. Some terminals (seen in a VS Code terminal) pass on a PATH where
     # Windows Terminal can't find powershell, which fails each tab with error 0x80070002. So: start powershell by its
@@ -200,6 +213,12 @@ if ($publicHost) {
     Write-Host "   OCPP 1.6 JSON     ws://$publicHost/ocpp/<Charger ID>"
     try { Set-Clipboard -Value $soap; Write-Host '   (SOAP address copied to the clipboard)' } catch { }
     Write-Host '   ngrok inspector   http://127.0.0.1:4040'
+}
+if ($Simulator) {
+    Write-Host ''
+    Write-Host " Charger simulator: $SimulatorId (OCPP 1.6 JSON, 2 connectors)" -ForegroundColor White
+    Write-Host "   It connects only if a charger with Charger ID $SimulatorId is registered in the portal"
+    Write-Host '   (protocol OCPP 1.6 (JSON)). Start charging from its connectors on the charger page.'
 }
 Write-Host ''
 if ($StatusOnly) { Write-Host ' Logs are in the VS Code terminals. Stop everything with the task "PLUG EV: stop".' }

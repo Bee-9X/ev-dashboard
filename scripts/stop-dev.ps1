@@ -1,5 +1,6 @@
 <#
-  Stops what start-dev started: the API (ports 4000 and 3003), the admin portal (port 3000) and ngrok.
+  Stops what start-dev started: the API (ports 4000 and 3003), the admin portal (port 3000), ngrok and the
+  charger simulator.
   Also stops the old gateway if it holds port 3003. PostgreSQL keeps running (it is a Windows service).
 
   Only the Node processes behind those ports are stopped; the terminal tabs stay open so you can still read
@@ -28,6 +29,14 @@ Write-Host 'PLUG EV - stopping the development setup' -ForegroundColor White
 Stop-PortTree 4000 'API'
 Stop-PortTree 3003 'Charger port'
 Stop-PortTree 3000 'Admin portal'
+
+# the charger simulator holds no port: find it by its script
+$sims = Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" -ErrorAction SilentlyContinue |
+    Where-Object { $_.CommandLine -match 'simulate-charger' }
+if ($sims) {
+    foreach ($p in $sims) { Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue }
+    Write-Host '  OK  Charger simulator stopped' -ForegroundColor Green
+} else { Write-Host '  --  Charger simulator: not running' -ForegroundColor DarkGray }
 
 $ngrok = Get-Process ngrok -ErrorAction SilentlyContinue
 if ($ngrok) { $ngrok | Stop-Process -Force; Write-Host '  OK  ngrok stopped' -ForegroundColor Green }

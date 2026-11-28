@@ -78,6 +78,8 @@ export class EvseEntity {
     @Column({ name: 'firmware_version', type: 'text', nullable: true }) firmwareVersion: string | null;
     @Column({ name: 'max_power_kw', type: 'numeric', precision: 7, scale: 2, nullable: true, transformer: decimal }) maxPowerKw: number | null;
     @Column({ type: 'text' }) status: EquipmentStatus;
+    /** SOAP only: where to send commands instead of the address the charger reports (e.g. behind port forwarding). */
+    @Column({ name: 'command_url', type: 'text', nullable: true }) commandUrl: string | null;
     @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date;
     @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date;
 }

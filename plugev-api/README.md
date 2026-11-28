@@ -35,6 +35,12 @@ Charging sessions (FR SES 001–003, 007): `GET /sessions` (filters `networkId`,
 `to`; newest first) and `GET /sessions/:id` (with its meter readings). Permission `session.read`, scoped like the rest.
 While a session charges, `live` has the energy so far, the power and the battery level.
 
+Remote commands (spec 5.3, 9.4, AC 11): `POST /evses/:id/commands/{remote-start, remote-stop, reset, unlock,
+availability, get-configuration, change-configuration, trigger-message}` answer 202 with the command (`queued`). The
+charger's answer, and the confirmation from its later messages, follow in `GET /evses/:id/commands/:commandId`. Each
+command is checked against its permission and the charger's state, and audited. Details:
+[../docs/phase-3/README.md](../docs/phase-3/README.md).
+
 A simulated OCPP 1.6J charger for testing: `npm run simulate -- --url ws://localhost:3003/ocpp/SIM-001 --connectors 2`
 (add `--charge 1` to have it charge on connector 1: a session with meter values)
 (register `SIM-001` in the portal first).
@@ -133,7 +139,7 @@ npm test
 |---|---|---|
 | SUPER_ADMIN | Platform | Everything. Created only with the CLI command or by another Super Admin. |
 | NETWORK_ADMIN | One network | Edit own network; create stations; invite and manage Station Admins in the network; read users and audit log of the network. Cannot suspend networks. |
-| STATION_ADMIN | Assigned stations | Read and rename assigned stations (not change their status). Remote commands only if delegated later. |
+| STATION_ADMIN | Assigned stations | Read and rename assigned stations (not change their status). See the remote commands sent to their chargers; sending them only if delegated later. |
 | EV_USER | Own account | Customer app, Phase 4. |
 
 The permission catalogue is in `src/access/permissions.ts`; the database copy is seeded by migration.

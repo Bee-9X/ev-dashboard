@@ -63,7 +63,7 @@ The router forwards one public port to the charger.
    - Internal IP: the charger's local IP
    - Internal port: the charger's command port (for example `8765`)
 3. If the router supports it, allow that port **only from the PLUG EV server's IP address**. The developer will give you this address. Without that limit, anyone on the internet can reach the charger's command port.
-4. Send the developer the public address, for example `http://203.0.113.10:8765` or `http://plugev-site.ddns.net:8765`. The developer enters it in the portal as the charger's **command endpoint override**.
+4. Send the developer the public address, for example `http://203.0.113.10:8765` or `http://plugev-site.ddns.net:8765`. The developer enters it in the admin portal as the charger's **Command address** (*Edit charger*).
 
 ---
 

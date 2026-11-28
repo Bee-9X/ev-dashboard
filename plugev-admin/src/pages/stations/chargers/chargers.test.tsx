@@ -56,6 +56,8 @@ function signedIn(me: Me, routes: Record<string, Handler>) {
         [`GET /stations/${ST.id}`]: () => ({ body: ST }),
         'GET /evses': () => page([EVSE]),
         [`GET /evses/${EVSE.id}`]: () => ({ body: EVSE }),
+        [`GET /evses/${EVSE.id}/commands`]: () => page([]),
+        [`GET /evses/${EVSE.id}/configuration`]: () => ({ body: { readAt: null, keys: [], unknownKeys: [] } }),
         ...routes,
     });
 }

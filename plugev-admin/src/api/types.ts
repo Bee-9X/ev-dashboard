@@ -237,6 +237,8 @@ export interface Evse {
     firmwareVersion: string | null;
     maxPowerKw: number | null;
     status: EquipmentStatus;
+    /** SOAP only: where commands go instead of the address the charger reports. */
+    commandUrl?: string | null;
     createdAt: string;
     connectors: Connector[];
     /** Null until the charger is first heard from through the gateway. */
@@ -335,4 +337,38 @@ export interface SessionQuery {
     stationId?: string;
     evseId?: string;
     status?: SessionStatus;
+}
+
+export type CommandStatus = 'queued' | 'sent' | 'accepted' | 'rejected' | 'failed' | 'timed_out';
+
+/** A remote command and what came of it. "accepted" means the charger took it, not that it physically happened. */
+export interface ChargerCommand {
+    id: string;
+    evseId: string;
+    /** The OCPP operation, e.g. RemoteStartTransaction. */
+    action: string;
+    connectorNumber: number | null;
+    payload: Record<string, unknown>;
+    status: CommandStatus;
+    /** What the charger answered, e.g. Accepted, Rejected, Unlocked, Scheduled. */
+    responseStatus: string | null;
+    error: string | null;
+    requestedBy: { id: string; name: string } | null;
+    createdAt: string;
+    sentAt: string | null;
+    answeredAt: string | null;
+    /** Whether the charger's later messages showed it happened. Null when there is nothing to confirm. */
+    confirmation: {
+        state: 'confirmed' | 'waiting' | 'not_confirmed';
+        at: string | null;
+        detail: string | null;
+        sessionId: string | null;
+    } | null;
+}
+
+export interface ChargerConfiguration {
+    /** Null until read from the charger. */
+    readAt: string | null;
+    keys: { key: string; value: string | null; readonly: boolean }[];
+    unknownKeys: string[];
 }
