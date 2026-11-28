@@ -70,9 +70,8 @@ Read at build time and visible in the browser, so never put secrets here.
 | Variable | Default | Meaning |
 |---|---|---|
 | `VITE_API_URL` | `http://localhost:4000/api/v1` | plugev-api as the browser reaches it |
-| `VITE_CONSOLE_URL` | (none) | Phase 0 charger console. When set, it appears in the menu |
 
-The Docker image (nginx, non-root, port 8080) takes these as build arguments. It also reads `API_ORIGIN` at
+The Docker image (nginx, non-root, port 8080) takes it as a build argument. It also reads `API_ORIGIN` at
 start-up for its Content Security Policy.
 
 ## How sign-in is kept

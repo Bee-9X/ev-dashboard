@@ -70,7 +70,7 @@ export class EvseEntity {
     @Column({ name: 'public_code', type: 'text' }) publicCode: string;
     @Column({ type: 'text', nullable: true }) name: string | null;
     @Column({ type: 'text' }) protocol: EvseProtocol;
-    /** The identity the charger connects to the gateway with (OCPP charge box id). */
+    /** The identity the charger connects with (OCPP charge box id). */
     @Column({ name: 'protocol_identity', type: 'text' }) protocolIdentity: string;
     @Column({ type: 'text' }) vendor: string;
     @Column({ type: 'text' }) model: string;
@@ -84,7 +84,7 @@ export class EvseEntity {
     @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date;
 }
 
-/** What the gateway last reported about a charger (written only by the gateway link). */
+/** What a charger last reported (written only by the charging module). */
 @Entity('evse_live_states')
 export class EvseLiveStateEntity {
     @PrimaryColumn({ name: 'evse_id', type: 'uuid' }) evseId: string;

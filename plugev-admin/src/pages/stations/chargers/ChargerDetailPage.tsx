@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { ArrowLeft, Cable, ExternalLink, Info, Pencil, Plus, Power, Printer, Radio } from 'lucide-react';
+import { ArrowLeft, Cable, Info, Pencil, Plus, Power, Printer, Radio } from 'lucide-react';
 import { api, ApiError, describeError } from '../../../api/client';
 import type { ActiveSession, Connector, ConnectorLive, Evse, EvseLive, Network, Station } from '../../../api/types';
 import { MAX_CONNECTORS } from '../../../api/types';
@@ -14,7 +14,6 @@ import { SessionsSection } from '../sessions/SessionsTable';
 import { ChargerDialog, ConnectorDialog } from './ChargerDialogs';
 import { ConfigurationSection, ConnectorCommands, RemoteControlSection, useCommands } from './RemoteControl';
 
-const CONSOLE_URL = import.meta.env.VITE_CONSOLE_URL as string | undefined;
 const LIVE_REFRESH_MS = 15000;
 
 type DialogState =
@@ -309,17 +308,10 @@ function LiveStatus({ evse }: { evse: Evse }) {
                 <Radio size={20} aria-hidden /> Live status
             </h2>
             {!live ? (
-                <>
-                    <p className="muted">
-                        Not heard from yet. The charger appears here once it connects to the PLUG EV gateway with the Charger ID{' '}
-                        <strong className="code-text">{evse.protocolIdentity}</strong>.
-                    </p>
-                    {CONSOLE_URL && (
-                        <a className="btn btn-secondary" href={CONSOLE_URL} target="_blank" rel="noreferrer">
-                            Open the charger console <ExternalLink size={16} aria-hidden />
-                        </a>
-                    )}
-                </>
+                <p className="muted">
+                    Not heard from yet. The charger appears here once it connects to PLUG EV with the Charger ID{' '}
+                    <strong className="code-text">{evse.protocolIdentity}</strong>.
+                </p>
             ) : (
                 <>
                     <dl className="details">

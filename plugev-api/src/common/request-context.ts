@@ -1,4 +1,4 @@
-import { AsyncLocalStorage } from 'node:async_hooks';
+import { AsyncLocalStorage, AsyncResource } from 'node:async_hooks';
 import { randomUUID } from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
 
@@ -11,6 +11,17 @@ export interface RequestContext {
 export const requestContext = new AsyncLocalStorage<RequestContext>();
 
 export const currentRequest = (): RequestContext | undefined => requestContext.getStore();
+
+// Created when the module loads, so it carries no request's context.
+const outsideRequests = new AsyncResource('plugev-background');
+
+/**
+ * Starts background work outside the current request's context: ours and nestjs-pino's, which would otherwise attach
+ * the whole HTTP request to every log line the work writes, long after the request has been answered.
+ */
+export function runOutsideRequest(work: () => void): void {
+    outsideRequests.runInAsyncScope(work);
+}
 
 const VALID_ID = /^[A-Za-z0-9._:-]{1,100}$/;
 

@@ -17,7 +17,7 @@ admin portal :3000 ─────────────▶ API :4000 ──�
 - Chargers use the same addresses as before (`http://<host>/ocpp/<Charger ID>` for SOAP, `ws://…` for OCPP-J), on
   the same port (3003), so ngrok and the charger settings do not change.
 - The admin API (4000) is a different port and is never exposed to chargers.
-- MongoDB is no longer used.
+- MongoDB is no longer used; the Phase 0 apps were removed in step 4.
 
 ## Plan
 
@@ -25,8 +25,8 @@ admin portal :3000 ─────────────▶ API :4000 ──�
 |---|---|---|
 | 1 | **Charging module in the API** (E3.1–E3.4): OCPP 1.5/1.6 SOAP and 1.6J ported from the Phase 0 gateway to TypeScript; only chargers registered in the portal are served; live status, charging sessions, meter values and the OCPP message log go to PostgreSQL | ✅ (PR #7) |
 | 2 | **Sessions on screen** (E3.5): session lists per charger, station and network; live energy and power while charging | ✅ (PR #8) |
-| 3 | **Remote commands from the portal** (E3.6): start, stop, reset, unlock, availability, configuration; permission checks and audit; the charger's actual answer | ✅ (branch `phase-3-remote-commands`) |
-| 4 | **Retire the Phase 0 stack**: `plugev-server`, the old portal with its charger console, and MongoDB (and the Atlas account) | Next |
+| 3 | **Remote commands from the portal** (E3.6): start, stop, reset, unlock, availability, configuration; permission checks and audit; the charger's actual answer | ✅ (PR #9) |
+| 4 | **Retire the Phase 0 stack**: `plugev-server`, the old portal with its charger console, and MongoDB (and the Atlas account) | ✅ (branch `phase-3-retire-phase0`); closing the Atlas account is the product owner's step |
 
 ## Step 3 in detail: remote commands
 
@@ -147,12 +147,16 @@ OCPP-J subprotocol, one connection per charger, dead connection detection.
 | `OCPP_COMMAND_TIMEOUT_MS` | `30000` | How long to wait for an OCPP 1.6 (JSON) charger to answer a command |
 | `OCPP_SOAP_COMMAND_TIMEOUT_MS` | `15000` | The same for SOAP chargers |
 
-### Moving over from the gateway
+## Step 4 in detail: the Phase 0 stack removed
 
-1. Stop `plugev-server` (the old gateway): the API needs port 3003. If both run, the API logs
-   *Port 3003 is already in use … Is plugev-server (the old gateway) still running?* and chargers cannot reach it.
-2. Restart the API. It logs `Chargers connect on port 3003`.
-3. ngrok and the charger settings stay as they are.
-4. `GATEWAY_API_KEY` in `plugev-api/.env` is no longer needed (it was for the external gateway).
-
-Remote commands come from the admin portal since step 3.
+- **Deleted:** `plugev-server` (the Phase 0 gateway with MongoDB) and `plugev-portal` (the old template portal with
+  the charger console), with their CI jobs, Docker images and the `legacy` compose profile.
+- **The gateway link in the API:** `POST /gateway/events`, its key guard and `GATEWAY_API_KEY` are gone. The service
+  behind it, which writes live charger state from order-safe events, moved into the charging module
+  (`LiveStateEvents`), with its tests.
+- **The admin portal:** the "Charger console" link and `VITE_CONSOLE_URL` are gone.
+- **Kept:** the Phase 0 documents in [../phase-0/](../phase-0/) (decisions, test plan, SETEC site guide). The code is
+  in git history before this step.
+- **For the product owner:** shut down the MongoDB Atlas cluster and close the account. Nothing uses it any more,
+  and that also settles the leaked password from Phase 0.
+- **Leftover settings:** a `GATEWAY_API_KEY` left in a `.env` file is ignored.

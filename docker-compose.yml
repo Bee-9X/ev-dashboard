@@ -7,11 +7,6 @@
 #   API       http://localhost:4000/api/v1   (docs: http://localhost:4000/api/docs)
 #   chargers  http://localhost:3003/ocpp/<Charger ID>  (OCPP SOAP and OCPP-J, served by the API)
 #
-# The Phase 0 gateway, its MongoDB and the old portal with the charger console are no longer needed.
-# Until they are removed they can still be started, on other ports, with:
-#   docker compose --profile legacy up -d --build
-#   legacy gateway http://localhost:3013, old portal http://localhost:8081
-#
 # Production uses the same images with managed PostgreSQL and a secrets manager (ADR-006).
 
 name: plugev
@@ -28,18 +23,6 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U plugev -d plugev"]
       interval: 5s
-      timeout: 5s
-      retries: 20
-
-  # legacy profile only: the Phase 0 gateway's database
-  mongo:
-    profiles: [legacy]
-    image: mongo:8
-    volumes:
-      - mongo-data:/data/db
-    healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
-      interval: 10s
       timeout: 5s
       retries: 20
 
@@ -61,8 +44,6 @@ services:
       QR_LINK_BASE: ${QR_LINK_BASE:-}
       # Chargers connect to the API's own charger port (OCPP SOAP and OCPP-J)
       OCPP_PORT: 3003
-      # Only for the legacy gateway: the key it sends with charger events (empty = that link off)
-      GATEWAY_API_KEY: ${PLATFORM_GATEWAY_KEY:-}
       MAIL_TRANSPORT: ${MAIL_TRANSPORT:-log}
       MAIL_FROM: ${MAIL_FROM:-PLUG EV <no-reply@plugev.local>}
       SMTP_HOST: ${SMTP_HOST:-}
@@ -79,10 +60,8 @@ services:
     build:
       context: ./plugev-admin
       args:
-        # Read by the browser, so these must be addresses the browser can reach.
+        # Read by the browser, so it must be an address the browser can reach.
         VITE_API_URL: ${API_PUBLIC_URL:-http://localhost:4000}/api/v1
-        # The old charger console, only with the legacy profile (empty = no menu link)
-        VITE_CONSOLE_URL: ${CONSOLE_URL:-}
     environment:
       # The only API the page may call (Content Security Policy)
       API_ORIGIN: ${API_PUBLIC_URL:-http://localhost:4000}
@@ -91,36 +70,5 @@ services:
     ports:
       - "8080:8080"
 
-  # legacy profile only: the Phase 0 gateway (replaced by the API's charging module)
-  gateway:
-    profiles: [legacy]
-    build: ./plugev-server
-    depends_on:
-      mongo:
-        condition: service_healthy
-    environment:
-      MONGODB_URI: mongodb://mongo:27017/plugev
-      API_KEY: ${GATEWAY_API_KEY:-}
-      CORS_ORIGINS: ${CONSOLE_URL:-http://localhost:8081}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-    ports:
-      # 3003 belongs to the API's charging module now
-      - "3013:3003"
-
-  # legacy profile only: Phase 0 portal with the charger test console
-  portal:
-    profiles: [legacy]
-    build:
-      context: ./plugev-portal
-      args:
-        # Read by the browser, so it must be an address the browser can reach.
-        REACT_APP_API_URL: ${GATEWAY_PUBLIC_URL:-http://localhost:3013}
-        REACT_APP_API_KEY: ${GATEWAY_API_KEY:-}
-    depends_on:
-      - gateway
-    ports:
-      - "8081:8080"
-
 volumes:
   postgres-data:
-  mongo-data:

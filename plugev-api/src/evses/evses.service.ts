@@ -41,11 +41,11 @@ export type ConnectorView = ConnectorEntity & {
     activeSession: ActiveSessionView | null;
 };
 
-/** What the gateway last reported (FR EVSE 003, FR MON 003). Null until the charger is first heard from. */
+/** What the charger last reported (FR EVSE 003, FR MON 003). Null until the charger is first heard from. */
 export interface EvseLiveView {
     /** Connected and heard from recently. */
     online: boolean;
-    /** As the gateway reported it; `online` also accounts for silence (e.g. the gateway stopped). */
+    /** As last recorded; `online` also accounts for silence (no message for CHARGER_OFFLINE_AFTER_SEC). */
     connectionState: 'online' | 'offline';
     protocol: string | null;
     lastSeenAt: Date | null;
@@ -94,7 +94,7 @@ function checkFormat(format: 'cable' | 'socket', current: 'AC' | 'DC') {
 
 /**
  * Chargers (EVSEs) and their connectors (FR EVSE 001, 002, 004, 006).
- * Live state (online, last seen, connector availability, faults: FR EVSE 003) comes from the gateway in Phase 3.
+ * Live state (online, last seen, connector availability, faults: FR EVSE 003) comes from the charging module.
  */
 @Injectable()
 export class EvsesService {

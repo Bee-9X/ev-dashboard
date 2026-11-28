@@ -44,13 +44,13 @@ export const DAY_LABELS: Record<Weekday, string> = {
     sun: 'Sunday',
 };
 
-/** The protocol name the gateway reports for each registered protocol. */
-const GATEWAY_PROTOCOL: Record<EvseProtocol, string> = {
+/** The protocol name the charging module reports for each registered protocol. */
+const CONNECTED_PROTOCOL: Record<EvseProtocol, string> = {
     OCPP_1_6_J: 'ocpp1.6-json',
     OCPP_1_6_S: 'ocpp1.6-soap',
     OCPP_1_5_S: 'ocpp1.5-soap',
 };
-const GATEWAY_PROTOCOL_LABELS: Record<string, string> = {
+const CONNECTED_PROTOCOL_LABELS: Record<string, string> = {
     'ocpp1.6-json': 'OCPP 1.6 (JSON)',
     'ocpp1.6-soap': 'OCPP 1.6 (SOAP)',
     'ocpp1.5-soap': 'OCPP 1.5 (SOAP)',
@@ -59,8 +59,8 @@ const GATEWAY_PROTOCOL_LABELS: Record<string, string> = {
 /** The protocol the charger actually connects with, when it differs from the registered one. */
 export function protocolMismatch(e: Pick<Evse, 'protocol' | 'live'>): string | null {
     const seen = e.live?.protocol;
-    if (!seen || seen === GATEWAY_PROTOCOL[e.protocol]) return null;
-    return GATEWAY_PROTOCOL_LABELS[seen] ?? seen;
+    if (!seen || seen === CONNECTED_PROTOCOL[e.protocol]) return null;
+    return CONNECTED_PROTOCOL_LABELS[seen] ?? seen;
 }
 
 /** Badge for an OCPP connector status; anything unknown is shown neutrally. */

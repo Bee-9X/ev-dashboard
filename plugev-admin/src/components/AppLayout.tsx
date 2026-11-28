@@ -1,15 +1,13 @@
 import { useEffect, useRef, useState, type ComponentType } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import {
-    Activity, ChevronRight, CircleDollarSign, EvCharger, ExternalLink, House, Landmark, LogOut, Menu, PlugZap, UserRound,
+    Activity, ChevronRight, CircleDollarSign, EvCharger, House, Landmark, LogOut, Menu, PlugZap, UserRound,
     UserRoundCog, X,
 } from 'lucide-react';
 import logo from '../assets/logo-grey.png';
 import { useAuth } from '../auth/AuthProvider';
 import { initials } from '../pages/format';
 import '../styles/layout.css';
-
-const CONSOLE_URL = import.meta.env.VITE_CONSOLE_URL as string | undefined;
 
 type Icon = ComponentType<{ size?: number; 'aria-hidden'?: boolean }>;
 
@@ -196,14 +194,6 @@ export function AppLayout() {
                     {ACTIVITY.map((e) => (
                         <NavGroup key={e.label} entry={e} onNavigate={() => setNavOpen(false)} />
                     ))}
-                    {CONSOLE_URL && (
-                        <li className="nav-item">
-                            <a className="nav-link" href={CONSOLE_URL} target="_blank" rel="noreferrer">
-                                <span className="nav-icon"><ExternalLink size={20} aria-hidden /></span>
-                                <span className="nav-label">Charger console</span>
-                            </a>
-                        </li>
-                    )}
                 </ul>
             </nav>
             <div className="backdrop" onClick={() => setNavOpen(false)} aria-hidden />

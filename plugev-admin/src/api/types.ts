@@ -175,12 +175,12 @@ export interface ConnectorLive {
     statusAt: string;
 }
 
-/** What the gateway last reported about a charger. */
+/** What the charger last reported to PLUG EV. */
 export interface EvseLive {
     /** Connected and heard from recently. */
     online: boolean;
     connectionState: 'online' | 'offline';
-    /** As the gateway saw it, e.g. ocpp1.5-soap. */
+    /** The protocol it connects with, e.g. ocpp1.5-soap. */
     protocol: string | null;
     lastSeenAt: string | null;
     connectedAt: string | null;
@@ -241,7 +241,7 @@ export interface Evse {
     commandUrl?: string | null;
     createdAt: string;
     connectors: Connector[];
-    /** Null until the charger is first heard from through the gateway. */
+    /** Null until the charger is first heard from. */
     live?: EvseLive | null;
 }
 
