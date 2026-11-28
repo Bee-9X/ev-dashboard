@@ -70,7 +70,7 @@ export class ChargingServer implements OnApplicationBootstrap, OnApplicationShut
         const listening = await new Promise<boolean>(resolve => {
             server.once('error', (err: NodeJS.ErrnoException) => {
                 this.logger.error(err.code === 'EADDRINUSE'
-                    ? `Port ${this.config.ocpp.port} is already in use, so chargers cannot connect. Is plugev-server (the old gateway) still running? Stop it and restart the API.`
+                    ? `Port ${this.config.ocpp.port} is already in use, so chargers cannot connect. Is another copy of the API (or another program) using it? Stop it and restart the API.`
                     : `Charger port could not open: ${err.message}`);
                 resolve(false);
             });

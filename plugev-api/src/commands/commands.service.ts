@@ -8,7 +8,7 @@ import { CommandError } from '../charging/ocpp/common';
 import type { Payload } from '../charging/ocpp/xml';
 import { Errors } from '../common/errors';
 import { Page, PageQueryDto, toPage } from '../common/pagination';
-import { currentRequest } from '../common/request-context';
+import { currentRequest, runOutsideRequest } from '../common/request-context';
 import { APP_CONFIG, AppConfig } from '../config/config';
 import { ConnectorEntity, EvseEntity, NetworkEntity } from '../database/entities';
 import {
@@ -228,7 +228,8 @@ export class CommandsService {
         });
         // answer with the command as recorded (queued) before sending starts, so the first answer is always the same
         const view = await this.getById(id);
-        void this.execute(id, evse, action, payload);
+        // the request is answered by then, so its context (and its log fields) must not follow the command
+        runOutsideRequest(() => void this.execute(id, evse, action, payload));
         return view;
     }
 

@@ -1,9 +1,0 @@
-node_modules
-test
-.env
-.env.*
-!.env.example
-*.log
-commands.txt
-Dockerfile
-.dockerignore

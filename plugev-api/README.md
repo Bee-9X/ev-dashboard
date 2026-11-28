@@ -45,9 +45,6 @@ A simulated OCPP 1.6J charger for testing: `npm run simulate -- --url ws://local
 (add `--charge 1` to have it charge on connector 1: a session with meter values)
 (register `SIM-001` in the portal first).
 
-`POST /gateway/events` (key `GATEWAY_API_KEY` in `X-Gateway-Key`) still accepts the same live events from an external
-gateway: the old `plugev-server`, or the charging module if it is ever run as a separate service again.
-
 Stack (ADR-002, ADR-003): Node 24, NestJS 11, TypeScript, PostgreSQL, TypeORM migrations, Argon2id, pino.
 
 ## Run locally

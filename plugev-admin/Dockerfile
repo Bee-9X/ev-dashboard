@@ -11,9 +11,7 @@ COPY index.html tsconfig.json vite.config.ts ./
 COPY public ./public
 COPY src ./src
 ARG VITE_API_URL=http://localhost:4000/api/v1
-ARG VITE_CONSOLE_URL=
-ENV VITE_API_URL=$VITE_API_URL \
-    VITE_CONSOLE_URL=$VITE_CONSOLE_URL
+ENV VITE_API_URL=$VITE_API_URL
 RUN npm run build
 
 # Unprivileged nginx (non-root, port 8080). Files in /etc/nginx/templates get ${ENV} substitution at start.

@@ -9,10 +9,9 @@ and troubleshooting. All commands are for the Windows dev PC (PowerShell unless 
 |---|---|---|
 | `plugev-api` | Core API (users, roles, networks, stations, chargers) **and the charging module chargers connect to** (OCPP 1.5/1.6 SOAP and 1.6J, port 3003). NestJS + PostgreSQL | current |
 | `plugev-admin` | Admin portal. React + TypeScript | current |
-| `plugev-server` | Phase 0 charger gateway (MongoDB) | replaced by the API's charging module; removed in Phase 3 step 4 |
-| `plugev-portal` | Phase 0 portal (old template + charger console) | replaced by `plugev-admin`; removed in Phase 3 step 4 |
 
-**MongoDB is not needed** any more. Only the old gateway uses it.
+The Phase 0 apps (`plugev-server`, the charger gateway with MongoDB, and `plugev-portal`, the old portal with its
+charger console) were removed in Phase 3 step 4. They are in git history before that. No MongoDB is needed.
 
 ## What runs where
 
@@ -90,7 +89,6 @@ The first gives a long secret; the second a 32-byte base64 key.
 | `MFA_ENCRYPTION_KEY` | a 32-byte key (second command). **Keep it**: changing it breaks everyone's two-step verification |
 | `PORTAL_URL`, `CORS_ORIGINS` | `http://localhost:3000` (default) |
 | `OCPP_PORT` | `3003` (default): the port chargers and ngrok use |
-| `GATEWAY_API_KEY` | leave empty (only for the old gateway) |
 
 Charger settings, all with working defaults:
 
@@ -113,7 +111,6 @@ Email: `MAIL_TRANSPORT=log` (default) writes emails, links included, to the API 
 | Setting | Value |
 |---|---|
 | `VITE_API_URL` | `http://localhost:4000/api/v1` |
-| `VITE_CONSOLE_URL` | leave empty |
 
 ### 5. Create the first Super Admin
 
@@ -152,7 +149,7 @@ Double-click **`start-dev.cmd`** in the project folder (or run `.\start-dev.cmd`
 
 1. checks Node, `plugev-api\.env` and the packages (runs `npm install` the first time);
 2. checks PostgreSQL is running (and starts it if it can);
-3. checks ports 4000, 3003 and 3000 are free, and tells you what holds them if not (e.g. the old gateway);
+3. checks ports 4000, 3003 and 3000 are free, and tells you what holds them if not;
 4. opens one Windows Terminal window with a tab each for the **API**, **ngrok**, the **admin portal** and the charger
    **simulator** `SIM-001`;
 5. waits until they're up, opens http://localhost:3000, and prints the charger address
@@ -172,8 +169,6 @@ Open one terminal per step, each starting in the project folder:
 ```
 cd "C:\Users\AYESH\Documents\Projects\PlugEV Dashboard\ev-dashboard"
 ```
-
-**Make sure the old gateway (`plugev-server`) is not running**: it uses port 3003 too.
 
 ### 1. PostgreSQL
 
@@ -275,9 +270,9 @@ npm run simulate -- --url ws://localhost:3003/ocpp/SIM-001 --connectors 2 --char
 
 ---
 
-## D. Testing the charging module (Phase 3 step 1)
+## D. Testing the charging module
 
-What to check on branch `phase-3-charging-module`, with the old gateway and MongoDB **not** running:
+What to check:
 
 | # | Do | Expect |
 |---|---|---|
@@ -356,7 +351,7 @@ Docker and the local setup both use ports 4000 and 3003, so run one or the other
 | You see | Meaning | Fix |
 |---|---|---|
 | ngrok shows `502 Bad Gateway` for `POST /ocpp/c1` | Nothing is listening on 3003 | Start the API; check it logged `Chargers connect on port 3003` |
-| API logs `Port 3003 is already in use` | Another program has the charger port, usually the old gateway | Close `plugev-server`, restart the API |
+| API logs `Port 3003 is already in use` | Another program has the charger port, often a second copy of the API | Close it (`stop-dev.cmd` finds it), restart the API |
 | API logs `no charger with this Charger ID is registered` | That Charger ID isn't in the portal | Register it, or fix the ID (*Edit charger*) |
 | Charger *Online* but no connector status | It hasn't reported a status yet (only does when one changes) | Plug in or unplug, or wait |
 | Charger page warns about the protocol | It connects with a different protocol than registered | *Edit charger*, pick the one in the warning |
@@ -381,23 +376,6 @@ Docker and the local setup both use ports 4000 and 3003, so run one or the other
 6. Put the new password in `DATABASE_URL` in `plugev-api\.env`.
 
 ---
-
-## H. Old gateway (no longer needed)
-
-Remote commands are in the admin portal since Phase 3 step 3, so the Phase 0 gateway and its charger console are not
-needed any more. They are removed in step 4 ([docs/phase-3/README.md](docs/phase-3/README.md)). Until then, to compare
-with the old console:
-
-1. In `plugev-api\.env` set `OCPP_ENABLED=false` and a `GATEWAY_API_KEY` (32+ characters), then restart the API
-   (this frees port 3003).
-2. In `plugev-server\.env`: `MONGODB_URI`, `PLATFORM_API_URL=http://localhost:4000/api/v1`, and
-   `PLATFORM_GATEWAY_KEY` = the API's `GATEWAY_API_KEY`. Then `cd plugev-server`, `npm install`, `npm run dev`.
-3. Old portal with the console: `REACT_APP_API_URL=http://localhost:3003` in `plugev-portal\.env`, then
-   `cd plugev-portal`, `npm install --force`, `$env:PORT=3001; npm start`.
-
-With Docker: `docker compose --profile legacy up -d --build` (gateway on 3013, old portal on 8081).
-
-Undo afterwards: stop both, remove `OCPP_ENABLED=false`, restart the API.
 
 ---
 

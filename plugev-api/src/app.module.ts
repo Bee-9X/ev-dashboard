@@ -18,7 +18,6 @@ import { HealthController } from './health/health.controller';
 import { MailModule } from './mail/mail.module';
 import { NetworksModule } from './networks/networks.module';
 import { EvsesModule } from './evses/evses.module';
-import { GatewayModule } from './gateway/gateway.module';
 import { ChargingModule } from './charging/charging.module';
 import { SessionsModule } from './sessions/sessions.module';
 import { CommandsModule } from './commands/commands.module';
@@ -79,7 +78,6 @@ export const JWT_AUDIENCE = 'plugev';
         UsersModule,
         NetworksModule,
         EvsesModule,
-        GatewayModule,
         ChargingModule,
         SessionsModule,
         CommandsModule,

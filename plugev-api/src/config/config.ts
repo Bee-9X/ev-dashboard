@@ -25,8 +25,6 @@ const schema = z.object({
     PORTAL_URL: z.url().default('http://localhost:3000'),
     // Start of the links in the connectors' QR codes, e.g. https://plugev.lk/c. Printed on stickers: keep it stable.
     QR_LINK_BASE: z.url().optional(),
-    // Shared key the charger gateway sends with its events (X-Gateway-Key). Unset: the gateway link is off.
-    GATEWAY_API_KEY: z.string().min(32, 'GATEWAY_API_KEY must be at least 32 characters').optional(),
     // A charger counts as offline when nothing was heard from it for this long.
     CHARGER_OFFLINE_AFTER_SEC: int.min(30).max(86400).default(120),
     // Charging module: OCPP 1.5/1.6 SOAP and OCPP 1.6J for chargers, on its own port (the one ngrok exposes).
@@ -77,7 +75,6 @@ export interface AppConfig {
     portalUrl: string;
     /** QR links are `${qrLinkBase}/<code>`; defaults to PORTAL_URL + /c. */
     qrLinkBase: string;
-    gatewayApiKey: string | null;
     chargerOfflineAfterSec: number;
     ocpp: {
         enabled: boolean;
@@ -128,7 +125,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
         mfaIssuer: e.MFA_ISSUER,
         corsOrigins: e.CORS_ORIGINS.split(',').map(s => s.trim()).filter(Boolean),
         portalUrl: e.PORTAL_URL.replace(/\/+$/, ''),
-        gatewayApiKey: e.GATEWAY_API_KEY ?? null,
         chargerOfflineAfterSec: e.CHARGER_OFFLINE_AFTER_SEC,
         ocpp: {
             enabled: e.OCPP_ENABLED,

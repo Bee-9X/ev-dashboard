@@ -1,8 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { APP_CONFIG, AppConfig } from '../config/config';
-import type { GatewayEventDto } from '../gateway/gateway.dto';
-import { GatewayService } from '../gateway/gateway.service';
+import { LiveEvent, LiveStateEvents } from './live-events';
 import type { OcppVersion, Payload } from './ocpp/xml';
 import type { Protocol } from './ocpp/common';
 
@@ -94,13 +93,13 @@ export class ConnectionRegistry {
 // "seen" is written at most this often per charger; every other event is written at once
 const SEEN_EVERY_MS = 15000;
 
-/** Writes what chargers do to the live state tables, through the same order-safe events the external gateway used. */
+/** Writes what chargers do to the live state tables, as order-safe events (see LiveStateEvents). */
 @Injectable()
 export class LiveState {
     private readonly logger = new Logger('Charging');
     private readonly lastSeenWritten = new Map<string, number>();
 
-    constructor(private readonly events: GatewayService, private readonly db: DataSource) {}
+    constructor(private readonly events: LiveStateEvents, private readonly db: DataSource) {}
 
     async seen(charger: Charger, protocol: Protocol, extra: { ip?: string; endpoint?: string } = {}): Promise<void> {
         const now = Date.now();
@@ -128,13 +127,13 @@ export class LiveState {
         await this.apply(charger, { type: 'disconnected', reason });
     }
 
-    async event(charger: Charger, e: Omit<GatewayEventDto, 'identity' | 'at'>): Promise<void> {
+    async event(charger: Charger, e: Omit<LiveEvent, 'identity' | 'at'>): Promise<void> {
         await this.apply(charger, e);
     }
 
-    private async apply(charger: Pick<Charger, 'protocolIdentity'>, e: Omit<GatewayEventDto, 'identity' | 'at'>): Promise<void> {
+    private async apply(charger: Pick<Charger, 'protocolIdentity'>, e: Omit<LiveEvent, 'identity' | 'at'>): Promise<void> {
         try {
-            await this.events.apply([{ ...e, identity: charger.protocolIdentity, at: new Date().toISOString() } as GatewayEventDto]);
+            await this.events.apply([{ ...e, identity: charger.protocolIdentity, at: new Date().toISOString() }]);
         } catch (err) {
             // live state must never break charger traffic
             this.logger.error(`Could not record ${e.type} for ${charger.protocolIdentity}: ${(err as Error).message}`);

@@ -13,7 +13,7 @@ export const MAX_CONNECTORS = 2;
 export const PROTOCOLS: EvseProtocol[] = ['OCPP_1_6_J', 'OCPP_1_6_S', 'OCPP_1_5_S'];
 export const CONNECTOR_TYPES: ConnectorType[] = ['CCS2', 'CCS1', 'CHADEMO', 'TYPE2', 'TYPE1', 'GBT'];
 export const EQUIPMENT_STATUSES = ['active', 'disabled'] as const;
-/** OCPP charge box identity: it ends up in the gateway URL, so keep it to URL-safe characters. */
+/** OCPP charge box identity: it ends up in the charger's OCPP URL, so keep it to URL-safe characters. */
 export const PROTOCOL_IDENTITY = /^[A-Za-z0-9._:-]{1,48}$/;
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);

@@ -118,7 +118,6 @@ if (-not $StatusOnly) {
         if ($owner) {
             $busy = $true
             Write-Warn2 "Port $port ($($entry.Label)) is already in use by: $owner"
-            if ($port -eq 3003 -and $owner -match 'plugev-server') { Write-Warn2 '  That is the old gateway (plugev-server): it must not run any more.' }
         }
     }
     if ($busy) { Stop-WithError 'Something is already running. Run stop-dev.cmd first (or close those windows), then start again.' }

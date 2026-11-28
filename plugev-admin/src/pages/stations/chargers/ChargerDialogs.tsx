@@ -199,7 +199,7 @@ export function ChargerDialog({ evse, stationId, stations, onClose, onSaved }: {
             <form onSubmit={submit} noValidate>
                 {!evse && (
                     <p className="muted">
-                        Register the charger with the identity it uses to connect to the PLUG EV gateway. Each connector gets its own
+                        Register the charger with the identity it uses to connect to PLUG EV. Each connector gets its own
                         QR code.
                     </p>
                 )}
