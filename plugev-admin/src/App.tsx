@@ -13,6 +13,7 @@ import { StationDetailPage } from './pages/stations/StationDetailPage';
 import { StationsPage } from './pages/stations/StationsPage';
 import { ChargerDetailPage } from './pages/stations/chargers/ChargerDetailPage';
 import { QrPrintPage } from './pages/stations/chargers/QrPrintPage';
+import { SessionDetailPage } from './pages/stations/sessions/SessionDetailPage';
 import { UserDetailPage } from './pages/users/UserDetailPage';
 import { UsersPage } from './pages/users/UsersPage';
 
@@ -104,7 +105,11 @@ export function App() {
                     path="stations/chargers/:evseId"
                     element={<RequirePermission permission="evse.read"><ChargerDetailPage /></RequirePermission>}
                 />
-                <Route path="stations/:stationId" element={<RequirePermission permission="station.read"><StationDetailPage /></RequirePermission>} />
+                <Route
+                    path="stations/sessions/:sessionId"
+                    element={<RequirePermission permission="session.read"><SessionDetailPage /></RequirePermission>}
+                />
+                <Route path="stations/:stationId"element={<RequirePermission permission="station.read"><StationDetailPage /></RequirePermission>} />
                 <Route path="*" element={<NotFoundPage />} />
             </Route>
         </Routes>

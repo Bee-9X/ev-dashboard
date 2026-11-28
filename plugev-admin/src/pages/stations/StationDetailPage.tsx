@@ -11,6 +11,7 @@ import { ChargerDialog } from './chargers/ChargerDialogs';
 import { ChargersTable } from './chargers/ChargersTable';
 import { StationDialog } from './dialogs';
 import { AMENITY_LABELS, hoursSummary, isNetworkLevel, mapsLink } from './equipment';
+import { SessionsSection } from './sessions/SessionsTable';
 import { StationDetailsDialog } from './StationDetailsDialog';
 import { TableLoading } from './StationsPage';
 
@@ -211,6 +212,14 @@ export function StationDetailPage() {
                                 <TableLoading />
                             )}
                         </section>
+                    )}
+
+                    {can('session.read') && (
+                        <SessionsSection
+                            filter={{ stationId: station.id }}
+                            empty="No charging sessions at this station yet."
+                            allLink={`/stations?tab=sessions&station=${station.id}`}
+                        />
                     )}
 
                     {dialog === 'details' && (

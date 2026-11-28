@@ -23,10 +23,40 @@ admin portal :3000 ─────────────▶ API :4000 ──�
 
 | Step | What | Status |
 |---|---|---|
-| 1 | **Charging module in the API** (E3.1–E3.4): OCPP 1.5/1.6 SOAP and 1.6J ported from the Phase 0 gateway to TypeScript; only chargers registered in the portal are served; live status, charging sessions, meter values and the OCPP message log go to PostgreSQL | ✅ (branch `phase-3-charging-module`) |
-| 2 | **Sessions on screen** (E3.5): session lists per charger, station and network; live energy and power while charging | Next |
-| 3 | **Remote commands from the portal** (E3.6): start, stop, reset, unlock, availability, configuration; permission checks and audit; the charger's actual answer | Planned |
+| 1 | **Charging module in the API** (E3.1–E3.4): OCPP 1.5/1.6 SOAP and 1.6J ported from the Phase 0 gateway to TypeScript; only chargers registered in the portal are served; live status, charging sessions, meter values and the OCPP message log go to PostgreSQL | ✅ (PR #7) |
+| 2 | **Sessions on screen** (E3.5): session lists per charger, station and network; live energy and power while charging | ✅ (branch `phase-3-sessions`) |
+| 3 | **Remote commands from the portal** (E3.6): start, stop, reset, unlock, availability, configuration; permission checks and audit; the charger's actual answer | Next |
 | 4 | **Retire the Phase 0 stack**: `plugev-server`, the old portal with its charger console, and MongoDB (and the Atlas account) | After step 3 |
+
+## Step 2 in detail: sessions on screen
+
+**API** (spec 9.2, FR SES 001–003, 007, FR MON 004):
+
+| Endpoint | What |
+|---|---|
+| `GET /api/v1/sessions` | Newest first, paged. Filters: `networkId`, `stationId`, `evseId`, `status` (`active`, `completed`, `interrupted`, `orphan`), `from` / `to` (start time, or the stop time when no start was recorded) |
+| `GET /api/v1/sessions/:id` | One session with all its meter readings (up to 5000) |
+| `GET /api/v1/evses/:id` | Each connector now has `activeSession`: the session charging on it, with energy so far, power and battery level |
+
+- Permission `session.read`, with the same scope as everything else: Network Admins see their network, Station Admins
+  their stations, and a session outside your scope answers 404.
+- While a session charges, `live` gives the energy so far (latest energy meter reading minus the meter start), the power,
+  and the battery level when the charger reports it. kWh and kW readings are converted; when a charger reports only
+  per-phase power, the phases are added up.
+- Meter readings sent without a transaction id (allowed in OCPP, common with 1.5 chargers) are now linked to the session
+  running on that connector (AC 07).
+
+**Admin portal:**
+
+- **Stations → Charging Sessions** tab: all sessions you can see, filtered by network, station and status.
+- Charger, station and network pages: their latest sessions.
+- A connector that is charging shows **Charging now**: duration, energy, power and battery, refreshed every 15 seconds.
+- Session page (`/stations/sessions/:id`): what, where and when, how it ended, the meter start and stop, and every
+  meter reading grouped by time.
+
+Session statuses on screen: *Charging* (active), *Completed*, *Interrupted* (the charger started a new session on the
+connector before reporting this one's stop) and *Unmatched stop* (a stop for a session the platform never saw start).
+Costs (FR SES 003 "cost breakdown") come with tariffs in Phase 5.
 
 ## Step 1 in detail
 

@@ -28,10 +28,15 @@ Nothing is deleted: chargers and connectors are disabled instead. Each connector
 OCPP 1.6J on their own port, `OCPP_PORT` (3003), at `/ocpp/<Charger ID>`. Only chargers registered in the portal are
 served. The module records live state (online, last seen, boot information, connector statuses), charging sessions,
 meter values and every OCPP message (kept `OCPP_MESSAGE_RETENTION_DAYS`) in PostgreSQL. `GET /evses` and
-`GET /evses/:id` include the live state as `live` and `connectors[].live`. Settings and plan:
-[../docs/phase-3/README.md](../docs/phase-3/README.md).
+`GET /evses/:id` include the live state as `live` and `connectors[].live`, and the session charging on each connector as
+`connectors[].activeSession`. Settings and plan: [../docs/phase-3/README.md](../docs/phase-3/README.md).
+
+Charging sessions (FR SES 001–003, 007): `GET /sessions` (filters `networkId`, `stationId`, `evseId`, `status`, `from`,
+`to`; newest first) and `GET /sessions/:id` (with its meter readings). Permission `session.read`, scoped like the rest.
+While a session charges, `live` has the energy so far, the power and the battery level.
 
 A simulated OCPP 1.6J charger for testing: `npm run simulate -- --url ws://localhost:3003/ocpp/SIM-001 --connectors 2`
+(add `--charge 1` to have it charge on connector 1: a session with meter values)
 (register `SIM-001` in the portal first).
 
 `POST /gateway/events` (key `GATEWAY_API_KEY` in `X-Gateway-Key`) still accepts the same live events from an external

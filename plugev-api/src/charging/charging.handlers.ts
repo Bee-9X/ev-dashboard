@@ -232,9 +232,17 @@ export class ChargingHandlers {
         const samples = extractSamples(p);
         if (!samples.length) return {};
         await this.db.transaction(async m => {
-            const [session] = transactionId === undefined ? [] : await m.query(
-                'SELECT id FROM charging_sessions WHERE evse_id = $1 AND ocpp_transaction_id = $2', [c.id, transactionId],
-            );
+            // Some chargers (often OCPP 1.5) leave out the optional transactionId: the readings then belong to the
+            // session running on that connector, if any (AC 07).
+            const [session] = transactionId !== undefined
+                ? await m.query('SELECT id FROM charging_sessions WHERE evse_id = $1 AND ocpp_transaction_id = $2', [c.id, transactionId])
+                : connectorNumber > 0
+                    ? await m.query(
+                        `SELECT id FROM charging_sessions WHERE evse_id = $1 AND connector_number = $2 AND status = 'active'
+                         ORDER BY started_at DESC LIMIT 1`,
+                        [c.id, connectorNumber],
+                    )
+                    : [];
             await this.storeSamples(m, c, samples, { connectorNumber, sessionId: session?.id ?? null, source: 'MeterValues' });
         });
         return {};

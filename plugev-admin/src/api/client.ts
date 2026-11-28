@@ -1,7 +1,7 @@
 import { session } from './session';
 import type {
-    ApiErrorBody, ConnectorInput, EnrolledSignIn, EquipmentStatus, Evse, EvseInput, LoginResult, Me, MfaSetup, MfaStatus, Network,
-    NetworkStatus, Page, RoleTarget, SignedIn, Station, StationDetails, StationStatus, TokenResponse, UserStatus, UserSummary,
+    ApiErrorBody, ChargingSession, ChargingSessionDetail, ConnectorInput, EnrolledSignIn, EquipmentStatus, Evse, EvseInput, LoginResult, Me, MfaSetup, MfaStatus, Network,
+    NetworkStatus, Page, RoleTarget, SessionQuery, SignedIn, Station, StationDetails, StationStatus, TokenResponse, UserStatus, UserSummary,
 } from './types';
 
 export interface NetworkInput {
@@ -187,6 +187,9 @@ export const api = {
         request<Evse>(`/evses/${encodeURIComponent(evseId)}/connectors`, { method: 'POST', body }),
     updateConnector: (evseId: string, connectorId: string, body: Partial<Omit<ConnectorInput, 'connectorNumber'>> & { status?: EquipmentStatus }) =>
         request<Evse>(`/evses/${encodeURIComponent(evseId)}/connectors/${encodeURIComponent(connectorId)}`, { method: 'PATCH', body }),
+
+    sessionsPage: (q: SessionQuery) => request<Page<ChargingSession>>(`/sessions${query({ ...q })}`),
+    getSession: (id: string) => request<ChargingSessionDetail>(`/sessions/${encodeURIComponent(id)}`),
 };
 
 /** ?a=1&b=x, skipping empty values. */

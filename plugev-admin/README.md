@@ -28,6 +28,10 @@ Built so far:
   - charger page: details, edit (also when the hardware is replaced), enable/disable, connectors with their QR codes,
     add, edit or disable a connector
   - **Print QR stickers**: one sticker per connector (`/print/chargers/:id`); warns while the links point to a test address
+  - **Charging Sessions** tab: all sessions you can see, filtered by network, station and status; charger, station and
+    network pages list their own latest sessions
+  - a connector that is charging shows **Charging now** (duration, energy, power, battery), refreshed every 15 seconds
+  - session page (`/stations/sessions/:id`): where and when, how it ended, meter start and stop, every meter reading
   - a Station Admin sees only their own stations
 - The other menu items from the old portal (Accounts, TopUp Accounts, Remote Start, My Recent Activity) are listed as "Soon"
   and move over one by one.

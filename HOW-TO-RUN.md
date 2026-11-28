@@ -256,6 +256,13 @@ npm run simulate -- --url ws://localhost:3003/ocpp/SIM-001 --connectors 2
 
 Options: `--power 7400` (W), `--meter-interval 10` (s). Stop it with Ctrl+C: the charger shows Offline.
 
+**To see a charging session**, add `--charge 1`: after start-up a "car" plugs into connector 1 and charges, sending
+meter readings every 10 seconds. Ctrl+C unplugs it first, so the session ends as *Completed*.
+
+```
+npm run simulate -- --url ws://localhost:3003/ocpp/SIM-001 --connectors 2 --charge 1
+```
+
 ---
 
 ## D. Testing the charging module (Phase 3 step 1)
@@ -271,9 +278,10 @@ What to check on branch `phase-3-charging-module`, with the old gateway and Mong
 | 5 | Point a charger at an unregistered ID, e.g. `/ocpp/nobody` | API logs *no charger with this Charger ID is registered*; SOAP boot is *Rejected* |
 | 6 | Disable a charger in the portal, then let it boot or start | charging refused; it stays online and its status keeps updating |
 
-**Charging sessions** are stored, but there's no screen for them yet (step 2), and no remote start from the portal
-(step 3). The simulator only starts a session on a remote start, and the tablet can't simulate charging. So for now
-sessions come from a real charger, or from the automated tests. To look at the stored data:
+**Charging sessions** show under *Stations → Charging Sessions*, on each charger, station and network page, and on a
+connector while it charges (*Charging now*). There's no remote start from the portal yet (step 3), and the tablet can't
+simulate charging, so make one with the simulator's `--charge 1` option (section C). To look at the stored data
+directly:
 
 ```
 psql -U postgres -d plugev

@@ -48,6 +48,7 @@ export function crumbsFor(path: string): string[] {
     if (path.startsWith('/users/')) return ['User', 'User Management', 'User Profile'];
     if (path === '/stations') return ['Stations'];
     if (path.startsWith('/stations/chargers/')) return ['Stations', 'Charger Terminals', 'Terminal Information'];
+    if (path.startsWith('/stations/sessions/')) return ['Stations', 'Charging Sessions', 'Session Information'];
     if (path.startsWith('/stations/networks/')) return ['Stations', 'Charging Networks', 'Network Information'];
     if (path.startsWith('/stations/')) return ['Stations', 'Chargers Stations', 'Station Information'];
     return [];
