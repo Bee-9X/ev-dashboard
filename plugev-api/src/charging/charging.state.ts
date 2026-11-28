@@ -58,6 +58,8 @@ export interface ChargerSession {
     endpoint?: string;
     isConnected(): boolean;
     sendCommand(action: string, payload: Payload, timeoutMs: number): Promise<Payload>;
+    /** OCPP-J: closes the WebSocket, so the charger reconnects and is checked again. */
+    close?(reason: string): void;
 }
 
 /** Live sessions, keyed by lower-case identity. */
@@ -83,6 +85,16 @@ export class ConnectionRegistry {
     hasOpenConnection(identity: string): boolean {
         const s = this.get(identity);
         return !!s && s.protocol === 'ocpp1.6-json' && s.isConnected();
+    }
+
+    /**
+     * Drops a charger's connection after its security settings changed: an open WebSocket was checked against the old
+     * ones. SOAP has no connection, and every SOAP request is checked anyway.
+     */
+    disconnect(identity: string, reason: string): void {
+        const s = this.get(identity);
+        if (s?.close) s.close(reason);
+        else if (s) this.remove(identity, s); // forget the SOAP address it reported until it is heard from again
     }
 
     all(): ChargerSession[] {

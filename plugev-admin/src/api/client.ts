@@ -1,6 +1,6 @@
 import { session } from './session';
 import type {
-    ApiErrorBody, ChargerCommand, ChargerConfiguration, ChargingSession, ChargingSessionDetail, ConnectorInput, EnrolledSignIn, EquipmentStatus, Evse, EvseInput, LoginResult, Me, MfaSetup, MfaStatus, Network,
+    ApiErrorBody, ChargerCommand, ChargerConfiguration, ChargerSecurity, ChargingSession, ChargingSessionDetail, ConnectorInput, EnrolledSignIn, EquipmentStatus, Evse, EvseInput, LoginResult, Me, MfaSetup, MfaStatus, Network,
     NetworkStatus, Page, RoleTarget, SessionQuery, SignedIn, Station, StationDetails, StationStatus, TokenResponse, UserStatus, UserSummary,
 } from './types';
 
@@ -26,7 +26,7 @@ export class ApiError extends Error {
 }
 
 interface RequestOptions {
-    method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+    method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
     body?: unknown;
     /** Send the access token (default true). Sign-in endpoints pass false. */
     auth?: boolean;
@@ -188,6 +188,17 @@ export const api = {
         request<Evse>(`/evses/${encodeURIComponent(evseId)}/connectors`, { method: 'POST', body }),
     updateConnector: (evseId: string, connectorId: string, body: Partial<Omit<ConnectorInput, 'connectorNumber'>> & { status?: EquipmentStatus }) =>
         request<Evse>(`/evses/${encodeURIComponent(evseId)}/connectors/${encodeURIComponent(connectorId)}`, { method: 'PATCH', body }),
+
+    chargerSecurity: (evseId: string) => request<ChargerSecurity>(`/evses/${encodeURIComponent(evseId)}/security`),
+    /** Without a password, the platform makes one. The answer is the only time it is shown. */
+    setChargerPassword: (evseId: string, password?: string) =>
+        request<{ password: string; security: ChargerSecurity }>(`/evses/${encodeURIComponent(evseId)}/security/password`, {
+            method: 'POST', body: password ? { password } : {},
+        }),
+    removeChargerPassword: (evseId: string) =>
+        request<ChargerSecurity>(`/evses/${encodeURIComponent(evseId)}/security/password`, { method: 'DELETE' }),
+    setAllowedAddresses: (evseId: string, addresses: string[]) =>
+        request<ChargerSecurity>(`/evses/${encodeURIComponent(evseId)}/security/allowed-addresses`, { method: 'PUT', body: { addresses } }),
 
     sessionsPage: (q: SessionQuery) => request<Page<ChargingSession>>(`/sessions${query({ ...q })}`),
     getSession: (id: string) => request<ChargingSessionDetail>(`/sessions/${encodeURIComponent(id)}`),

@@ -12,6 +12,7 @@ import { connectorLabel, evseTitle, formatKw, liveBadge, liveLabel, PROTOCOL_LAB
 import { formatDuration, formatEnergy, formatPower } from '../sessions/sessionFormat';
 import { SessionsSection } from '../sessions/SessionsTable';
 import { ChargerDialog, ConnectorDialog } from './ChargerDialogs';
+import { ChargerSecuritySection } from './ChargerSecurity';
 import { ConfigurationSection, ConnectorCommands, RemoteControlSection, useCommands } from './RemoteControl';
 
 const LIVE_REFRESH_MS = 15000;
@@ -230,6 +231,8 @@ export function ChargerDetailPage() {
                     </section>
 
                     <RemoteControlSection evse={evse} commands={commands.commands} error={commands.error} issue={commands.issue} />
+
+                    <ChargerSecuritySection evse={evse} canEdit={canEdit} />
 
                     {can('session.read') && (
                         <SessionsSection

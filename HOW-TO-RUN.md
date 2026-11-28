@@ -89,6 +89,7 @@ The first gives a long secret; the second a 32-byte base64 key.
 | `MFA_ENCRYPTION_KEY` | a 32-byte key (second command). **Keep it**: changing it breaks everyone's two-step verification |
 | `PORTAL_URL`, `CORS_ORIGINS` | `http://localhost:3000` (default) |
 | `OCPP_PORT` | `3003` (default): the port chargers and ngrok use |
+| `OCPP_TRUSTED_PROXIES` | `1` when chargers come through ngrok (as in `.env.example`), so the API sees their real address |
 
 Charger settings, all with working defaults:
 
@@ -103,6 +104,8 @@ Charger settings, all with working defaults:
 | `OCPP_REMOTE_ID_TAG` | `PLUGEV-ADMIN` | The card (idTag) a remote start from the portal uses unless another is typed in; always accepted |
 | `OCPP_COMMAND_TIMEOUT_MS` | `30000` | How long to wait for an OCPP 1.6 (JSON) charger to answer a command |
 | `OCPP_SOAP_COMMAND_TIMEOUT_MS` | `15000` | The same for SOAP chargers |
+| `OCPP_TRUSTED_PROXIES` | `0` | Proxies in front of the charger port that add `X-Forwarded-For`: **`1` with ngrok**. With `0` every charger seems to come from ngrok (`127.0.0.1`) |
+| `OCPP_ALLOW_UNSECURED_CHARGERS` | yes, no in production | Accept chargers that have neither a password nor allowed addresses (section C.3) |
 
 Email: `MAIL_TRANSPORT=log` (default) writes emails, links included, to the API terminal instead of sending them.
 
@@ -207,6 +210,8 @@ It prints the public address, e.g. `http://wen-conductorial-unmellifluously.ngro
 shows in this window and at http://127.0.0.1:4040.
 
 - `--scheme http` gives a plain `http://` address, which SOAP chargers like the SETEC tablet need (port 80).
+- For OCPP-J chargers with a password, `ngrok http 3003 --scheme http,https` adds an `https://` address too, so they
+  can connect with `wss://` and the password is encrypted. SOAP chargers keep using `http://`.
 - **The address changes each time ngrok restarts** (unless you reserve a static domain in the ngrok dashboard).
   Then the charger needs the new address (section C).
 
@@ -250,6 +255,24 @@ SOAP note: commands from the platform go **to** the address the charger reports.
 mobile data can't be reached without port forwarding or a VPN. See
 [docs/phase-0/setec-site-setup.md](docs/phase-0/setec-site-setup.md).
 
+### 3. Secure it
+
+Otherwise anyone who knows the Charger ID and the ngrok address can connect as that charger. On the charger page,
+**Connection security**:
+
+| Charger | What to set |
+|---|---|
+| OCPP 1.6 **JSON** | **Set password**. The platform makes one and shows it once; enter it in the charger's OCPP settings as the Basic authentication password (user name: the Charger ID). If the charger has a fixed password, enter that one instead. Prefer `wss://` (section B.3), so the password travels encrypted |
+| OCPP **SOAP** (e.g. c1) | **Edit allowed addresses**: the public address of the site's internet connection. *Add … (where it last connected from)* fills in the address the charger used last. It must not change, so the site needs a fixed public IP |
+
+- *Last refused* on that page says when and why a connection was refused (no password, wrong password, address
+  not allowed), and the API logs it too.
+- Replacing a password closes the charger's open connection; it must reconnect with the new one.
+- Every change is in the audit log.
+- `OCPP_ALLOW_UNSECURED_CHARGERS` (yes by default, no in production) decides whether chargers with neither are
+  accepted at all.
+- With ngrok, `OCPP_TRUSTED_PROXIES=1` must be set, or every charger seems to come from ngrok's own address.
+
 ### No charger at hand? Use the simulator
 
 Register `SIM-001` first (protocol *OCPP 1.6 (JSON)*, two connectors), then:
@@ -260,6 +283,10 @@ npm run simulate -- --url ws://localhost:3003/ocpp/SIM-001 --connectors 2
 ```
 
 Options: `--power 7400` (W), `--meter-interval 10` (s). Stop it with Ctrl+C: the charger shows Offline.
+
+If `SIM-001` has a password (section C.3), give it with `--password <password>`, or in the `SIM_CHARGER_PASSWORD`
+environment variable to keep it out of the command line. Without the right one the simulator logs
+*Refused: HTTP 401* and keeps retrying.
 
 **To see a charging session**, add `--charge 1`: after start-up a "car" plugs into connector 1 and charges, sending
 meter readings every 10 seconds. Ctrl+C unplugs it first, so the session ends as *Completed*.
@@ -282,6 +309,8 @@ What to check:
 | 4 | Stop the simulator | **Offline** shortly after |
 | 5 | Point a charger at an unregistered ID, e.g. `/ocpp/nobody` | API logs *no charger with this Charger ID is registered*; SOAP boot is *Rejected* |
 | 6 | Disable a charger in the portal, then let it boot or start | charging refused; it stays online and its status keeps updating |
+| 7 | `SIM-001` → Connection security → *Set password*; restart the simulator without `--password`, then with it | without: *Refused: HTTP 401*, and *Last refused … sent no password* on the page; with: **Online** |
+| 8 | c1 → *Edit allowed addresses* → *Add … (where it last connected from)* → Save | c1 stays online. Change the address to `192.0.2.1`: c1 is refused, *Last refused … not allowed* |
 
 **Charging sessions** show under *Stations → Charging Sessions*, on each charger, station and network page, and on a
 connector while it charges (*Charging now*). The tablet can't simulate charging, so make one with the simulator: its

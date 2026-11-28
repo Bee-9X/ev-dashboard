@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ChargerGate } from './charger-gate';
 import { ChargerCommander } from './charging.commands';
 import { CommandConfirmations } from './charging.confirmations';
 import { ChargingHandlers } from './charging.handlers';
@@ -14,7 +15,7 @@ import { SoapAdapter } from './soap.adapter';
 @Module({
     providers: [
         ChargerDirectory, ConnectionRegistry, LiveState, OcppMessageLog, ChargingHandlers, SoapAdapter, JsonAdapter, ChargingServer,
-        ChargerCommander, CommandConfirmations, LiveStateEvents,
+        ChargerCommander, CommandConfirmations, LiveStateEvents, ChargerGate,
     ],
     exports: [ConnectionRegistry, ChargingServer, ChargerCommander],
 })

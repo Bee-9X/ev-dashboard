@@ -26,7 +26,10 @@ admin portal :3000 ─────────────▶ API :4000 ──�
 | 1 | **Charging module in the API** (E3.1–E3.4): OCPP 1.5/1.6 SOAP and 1.6J ported from the Phase 0 gateway to TypeScript; only chargers registered in the portal are served; live status, charging sessions, meter values and the OCPP message log go to PostgreSQL | ✅ (PR #7) |
 | 2 | **Sessions on screen** (E3.5): session lists per charger, station and network; live energy and power while charging | ✅ (PR #8) |
 | 3 | **Remote commands from the portal** (E3.6): start, stop, reset, unlock, availability, configuration; permission checks and audit; the charger's actual answer | ✅ (PR #9) |
-| 4 | **Retire the Phase 0 stack**: `plugev-server`, the old portal with its charger console, and MongoDB (and the Atlas account) | ✅ (branch `phase-3-retire-phase0`); closing the Atlas account is the product owner's step |
+| 4 | **Retire the Phase 0 stack**: `plugev-server`, the old portal with its charger console, and MongoDB (and the Atlas account) | ✅ (PR #10); closing the Atlas account is the product owner's step |
+| 5 | **Charger security** (E3.2): a password per charger (OCPP-J, HTTP Basic), allowed addresses (SOAP), refusals shown in the portal | ✅ (branch `phase-3-charger-security`) |
+| 6 | **Live updates** (E3.7): changes pushed to the portal instead of re-reading | Next |
+| 7 | **Alerts and outages** (E3.4): admins told when a charger goes offline or reports a fault; outages recorded | Planned |
 
 ## Step 3 in detail: remote commands
 
@@ -146,6 +149,52 @@ OCPP-J subprotocol, one connection per charger, dead connection detection.
 | `OCPP_REMOTE_ID_TAG` | `PLUGEV-ADMIN` | The card (idTag) a remote start from the portal uses unless another is typed in; always accepted |
 | `OCPP_COMMAND_TIMEOUT_MS` | `30000` | How long to wait for an OCPP 1.6 (JSON) charger to answer a command |
 | `OCPP_SOAP_COMMAND_TIMEOUT_MS` | `15000` | The same for SOAP chargers |
+
+## Step 5 in detail: charger security
+
+Spec 7.5 (*per device credentials …; validate device identity and connection authorization before accepting messages;
+restrict inbound connections to approved endpoints; rotate credentials and revoke compromised devices*) and 11.4
+(*charger impersonation*). Before this step, any client that knew a Charger ID and the ngrok address could connect as
+that charger, send it false data, take over its WebSocket, or (SOAP) change where its commands were sent.
+
+**What a charger can be given** (charger page → *Connection security*, Network Admins and Super Admins; Station Admins
+see it):
+
+- **A password.** OCPP 1.6 security profile 1 (profile 2 over `wss://`): HTTP Basic authentication, user name = the
+  Charger ID. The platform makes one (24 random letters and digits) and shows it once, or takes the charger's fixed
+  password (16–40 characters). Stored as a salted SHA-256 hash in `charger_security`, apart from `evses`, so it is
+  never in a charger's API view. Works for SOAP chargers too, if they can send one.
+- **Allowed addresses.** IPv4/IPv6 addresses or CIDR ranges, at most 20. Meant for SOAP chargers such as the SETEC
+  tablet, which cannot send a password. The site needs a fixed public IP.
+
+**How a connection is checked** (`ChargerGate`), before any message is handled: registered → from an allowed address,
+if it has a list → the right password, if it has one → otherwise accepted only while `OCPP_ALLOW_UNSECURED_CHARGERS`
+is on. OCPP-J chargers are checked when the WebSocket opens (refused with 401 or 403), SOAP chargers on every request
+(SOAP fault *SecurityError*, 401 or 403). A refused SOAP request changes nothing: not the address commands go to, not
+the live state.
+
+**The charger's address.** `X-Forwarded-For` is believed only for the proxies we run (`OCPP_TRUSTED_PROXIES`; 1 for
+ngrok). The address used is the one our outermost proxy added, so a charger cannot pass itself off as another address
+by sending the header itself. Before this step the API took the first entry, which the client controls.
+
+**Rotation and revocation.** Replacing a password ends the old one at once and closes the charger's open connection;
+changing the allowed addresses closes it too, so it is checked again. Removing the password and the addresses
+(with unsecured chargers refused) locks a charger out. Every change is audited (`evse.password_set`,
+`evse.password_replace`, `evse.password_remove`, `evse.allowed_addresses_change`), never with the password.
+
+**Refusals** are logged and kept on the charger (*Last refused*: when, from where, why), at most once a minute per
+reason and address, so a charger retrying every few seconds fills neither the log nor the database.
+
+**Settings:**
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `OCPP_TRUSTED_PROXIES` | `0` | Proxies in front of the charger port that add `X-Forwarded-For`. `1` with ngrok (as in `.env.example`) |
+| `OCPP_ALLOW_UNSECURED_CHARGERS` | `true`, `false` with `NODE_ENV=production` | Accept chargers with neither a password nor allowed addresses. Docker Compose sets `false` |
+
+**Not covered yet:** the platform does not check that an OCPP-J charger with a password came over TLS, since TLS ends
+at ngrok or the load balancer. Profile 3 (client certificates) and setting the password on the charger remotely
+(`ChangeConfiguration AuthorizationKey`, OCPP 1.6 security extension) wait for chargers that support them.
 
 ## Step 4 in detail: the Phase 0 stack removed
 

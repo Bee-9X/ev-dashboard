@@ -21,6 +21,7 @@ import { EvsesModule } from './evses/evses.module';
 import { ChargingModule } from './charging/charging.module';
 import { SessionsModule } from './sessions/sessions.module';
 import { CommandsModule } from './commands/commands.module';
+import { ChargerSecurityModule } from './charger-security/charger-security.module';
 import { UsersModule } from './users/users.module';
 
 export const JWT_ISSUER = 'plugev-api';
@@ -81,6 +82,7 @@ export const JWT_AUDIENCE = 'plugev';
         ChargingModule,
         SessionsModule,
         CommandsModule,
+        ChargerSecurityModule,
     ],
     controllers: [HealthController],
     providers: [

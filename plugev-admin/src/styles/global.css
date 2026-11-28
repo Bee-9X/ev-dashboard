@@ -494,6 +494,8 @@ code, .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .form-section h3 { margin: 0 0 10px; font-size: 0.95rem; font-weight: 600; color: #fff; }
 .checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px 14px; margin-bottom: 14px; }
 .radio-row { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-bottom: 12px; }
+.plain-list { list-style: none; margin: 0; padding: 0; }
+.plain-list li + li { margin-top: 4px; }
 .hours { display: grid; grid-template-columns: 120px auto 1fr 1fr; gap: 8px 12px; align-items: center; margin-bottom: 10px; }
 .hours .input { min-height: 36px; }
 .hours .closed { grid-column: span 2; color: var(--text-muted); }

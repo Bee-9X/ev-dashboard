@@ -3,7 +3,11 @@
  * Minimal OCPP 1.6J charge point simulator.
  *
  *   node tools/simulate-charger.js --url ws://localhost:3003/ocpp/SIM-001 [--connectors 2] [--power 7400]
- *       [--charge 1] [--id-tag SIM-TAG] [--meter-interval 10]
+ *       [--charge 1] [--id-tag SIM-TAG] [--meter-interval 10] [--password <the charger's password>]
+ *
+ * --password: when the charger has a password in the admin portal, sent with HTTP Basic authentication (user name =
+ * the Charger ID at the end of the URL), as OCPP 1.6 security profile 1 does. The SIM_CHARGER_PASSWORD environment
+ * variable works too, and keeps the password out of the command line.
  *
  * --charge <connector>: after start-up, a car plugs in and charges on that connector (a charging session with meter
  * values), as if a driver had tapped a card. Ctrl+C unplugs it first, so the session ends as completed.
@@ -20,6 +24,7 @@ function createSimulator({
     connectors = 1,
     powerW = 7400,
     meterIntervalSec = 10,
+    password = null,
     reconnect = true,
     log = console.log,
 } = {}) {
@@ -187,7 +192,14 @@ function createSimulator({
 
     function connect() {
         return new Promise((resolve) => {
-            ws = new WebSocket(url, ['ocpp1.6']);
+            const identity = decodeURIComponent(new URL(url).pathname.split('/').filter(Boolean).pop() || '');
+            const headers = password ? { Authorization: `Basic ${Buffer.from(`${identity}:${password}`).toString('base64')}` } : {};
+            ws = new WebSocket(url, ['ocpp1.6'], { headers });
+            ws.on('unexpected-response', (_req, res) => {
+                const why = { 401: 'wrong or missing password (--password)', 403: 'not allowed from this address, or the charger is not secured', 404: 'no charger with this Charger ID is registered' }[res.statusCode];
+                log(`Refused: HTTP ${res.statusCode}${why ? ` (${why})` : ''}`);
+                ws.terminate(); // ends in 'close', which retries
+            });
             ws.on('open', async () => {
                 state.connected = true;
                 log(`Connected to ${url}`);
@@ -280,6 +292,7 @@ if (require.main === module) {
         connectors: Number(opt('connectors', 1)),
         powerW: Number(opt('power', 7400)),
         meterIntervalSec: Number(opt('meter-interval', 10)),
+        password: opt('password', process.env.SIM_CHARGER_PASSWORD || null),
         log: (...a) => console.log(new Date().toISOString(), ...a),
     });
     const charge = Number(opt('charge', 0));

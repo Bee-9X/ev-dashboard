@@ -44,6 +44,10 @@ services:
       QR_LINK_BASE: ${QR_LINK_BASE:-}
       # Chargers connect to the API's own charger port (OCPP SOAP and OCPP-J)
       OCPP_PORT: 3003
+      # Proxies in front of the charger port that add X-Forwarded-For (1 behind ngrok or a load balancer)
+      OCPP_TRUSTED_PROXIES: ${OCPP_TRUSTED_PROXIES:-0}
+      # Chargers must have a password or allowed addresses (set the first ones up with this on true)
+      OCPP_ALLOW_UNSECURED_CHARGERS: ${OCPP_ALLOW_UNSECURED_CHARGERS:-false}
       MAIL_TRANSPORT: ${MAIL_TRANSPORT:-log}
       MAIL_FROM: ${MAIL_FROM:-PLUG EV <no-reply@plugev.local>}
       SMTP_HOST: ${SMTP_HOST:-}

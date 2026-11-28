@@ -39,6 +39,10 @@ const schema = z.object({
     OCPP_SOAP_COMMAND_TIMEOUT_MS: int.min(1000).max(120000).default(15000),
     // idTag sent with a remote start from the portal; always accepted (unless the charger or connector is disabled)
     OCPP_REMOTE_ID_TAG: z.string().trim().min(1).max(20).default('PLUGEV-ADMIN'),
+    // Accept chargers that have neither a password nor allowed addresses. Default: yes, except in production.
+    OCPP_ALLOW_UNSECURED_CHARGERS: bool.optional(),
+    // Reverse proxies in front of the charger port that add X-Forwarded-For (ngrok = 1). 0 = chargers connect directly.
+    OCPP_TRUSTED_PROXIES: int.min(0).max(5).default(0),
     TRUST_PROXY: bool.default(false),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
     MAIL_TRANSPORT: z.enum(['log', 'smtp']).default('log'),
@@ -85,6 +89,10 @@ export interface AppConfig {
         commandTimeoutMs: number;
         soapCommandTimeoutMs: number;
         remoteIdTag: string;
+        /** Accept chargers with neither a password nor allowed addresses. */
+        allowUnsecuredChargers: boolean;
+        /** Proxies whose X-Forwarded-For entries are trusted when working out a charger's address. */
+        trustedProxies: number;
     };
     trustProxy: boolean;
     logLevel: string;
@@ -135,6 +143,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
             commandTimeoutMs: e.OCPP_COMMAND_TIMEOUT_MS,
             soapCommandTimeoutMs: e.OCPP_SOAP_COMMAND_TIMEOUT_MS,
             remoteIdTag: e.OCPP_REMOTE_ID_TAG,
+            allowUnsecuredChargers: e.OCPP_ALLOW_UNSECURED_CHARGERS ?? e.NODE_ENV !== 'production',
+            trustedProxies: e.OCPP_TRUSTED_PROXIES,
         },
         qrLinkBase: (e.QR_LINK_BASE ?? `${e.PORTAL_URL.replace(/\/+$/, '')}/c`).replace(/\/+$/, ''),
         trustProxy: e.TRUST_PROXY,

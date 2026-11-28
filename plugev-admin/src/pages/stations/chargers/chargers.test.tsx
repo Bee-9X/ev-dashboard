@@ -58,6 +58,7 @@ function signedIn(me: Me, routes: Record<string, Handler>) {
         [`GET /evses/${EVSE.id}`]: () => ({ body: EVSE }),
         [`GET /evses/${EVSE.id}/commands`]: () => page([]),
         [`GET /evses/${EVSE.id}/configuration`]: () => ({ body: { readAt: null, keys: [], unknownKeys: [] } }),
+        [`GET /evses/${EVSE.id}/security`]: () => ({ body: { passwordSet: false, passwordSetAt: null, allowedAddresses: [], secured: false, unsecuredAccepted: true, lastAddress: null, lastRefusal: null } }),
         ...routes,
     });
 }

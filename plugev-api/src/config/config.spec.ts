@@ -29,6 +29,15 @@ describe('loadConfig', () => {
         expect(c.mail.smtp).toEqual({ host: 'email-smtp.ap-south-1.amazonaws.com', port: 587, secure: false, requireTls: true, user: 'u', password: 'p' });
     });
 
+    it('chargers: unsecured ones accepted except in production, unless set; no proxy trusted by default', () => {
+        expect(loadConfig(base).ocpp).toMatchObject({ allowUnsecuredChargers: true, trustedProxies: 0 });
+        expect(loadConfig({ ...base, NODE_ENV: 'production' }).ocpp.allowUnsecuredChargers).toBe(false);
+        expect(loadConfig({ ...base, NODE_ENV: 'production', OCPP_ALLOW_UNSECURED_CHARGERS: 'true' }).ocpp.allowUnsecuredChargers).toBe(true);
+        expect(loadConfig({ ...base, OCPP_ALLOW_UNSECURED_CHARGERS: 'false', OCPP_TRUSTED_PROXIES: '1' }).ocpp)
+            .toMatchObject({ allowUnsecuredChargers: false, trustedProxies: 1 });
+        expect(() => loadConfig({ ...base, OCPP_TRUSTED_PROXIES: '9' })).toThrow(/OCPP_TRUSTED_PROXIES/);
+    });
+
     it('parses lists and booleans', () => {
         const c = loadConfig({ ...base, CORS_ORIGINS: 'https://a.lk, https://b.lk', TRUST_PROXY: 'true', PORTAL_URL: 'https://portal.lk/' });
         expect(c.corsOrigins).toEqual(['https://a.lk', 'https://b.lk']);

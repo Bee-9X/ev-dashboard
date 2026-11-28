@@ -41,9 +41,14 @@ charger's answer, and the confirmation from its later messages, follow in `GET /
 command is checked against its permission and the charger's state, and audited. Details:
 [../docs/phase-3/README.md](../docs/phase-3/README.md).
 
+Charger security (spec 7.5, 11.4): `GET /evses/:id/security`, `POST`/`DELETE /evses/:id/security/password` and
+`PUT /evses/:id/security/allowed-addresses`. OCPP-J chargers with a password send it with HTTP Basic authentication
+(user name = Charger ID); SOAP chargers are limited to their allowed addresses. Each connection is checked before any
+of its messages is handled (`src/charging/charger-gate.ts`). Details: [../docs/phase-3/README.md](../docs/phase-3/README.md).
+
 A simulated OCPP 1.6J charger for testing: `npm run simulate -- --url ws://localhost:3003/ocpp/SIM-001 --connectors 2`
 (add `--charge 1` to have it charge on connector 1: a session with meter values)
-(register `SIM-001` in the portal first).
+(register `SIM-001` in the portal first; `--password` if it has one).
 
 Stack (ADR-002, ADR-003): Node 24, NestJS 11, TypeScript, PostgreSQL, TypeORM migrations, Argon2id, pino.
 

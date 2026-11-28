@@ -1,6 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import express, { Request, Response, Router } from 'express';
 import { randomUUID } from 'node:crypto';
+import { APP_CONFIG, AppConfig } from '../config/config';
+import { clientAddress } from './charger-credentials';
+import { ChargerGate } from './charger-gate';
 import { ChargingHandlers } from './charging.handlers';
 import { ChargerSession, ConnectionRegistry, OcppMessageLog } from './charging.state';
 import { CommandError, OcppError, Protocol } from './ocpp/common';
@@ -19,12 +22,6 @@ function text(v: unknown): string | undefined {
         return value !== undefined ? String(value) : undefined;
     }
     return String(v);
-}
-
-export function clientIp(req: { headers: Record<string, unknown>; socket: { remoteAddress?: string } }): string {
-    const fwd = req.headers['x-forwarded-for'];
-    const ip = (fwd ? String(fwd).split(',')[0]!.trim() : req.socket.remoteAddress) || '';
-    return ip.startsWith('::ffff:') ? ip.slice(7) : ip;
 }
 
 /** "bootNotificationRequest" -> "bootNotificationResponse" (keeps the charger's casing style). */
@@ -49,6 +46,8 @@ export class SoapAdapter {
         private readonly handlers: ChargingHandlers,
         private readonly registry: ConnectionRegistry,
         private readonly messages: OcppMessageLog,
+        private readonly gate: ChargerGate,
+        @Inject(APP_CONFIG) private readonly config: AppConfig,
     ) {}
 
     router(): Router {
@@ -60,7 +59,10 @@ export class SoapAdapter {
             res.status(200).send('OK');
         });
         router.post(/ocpp/i, rawBody, (req, res) => {
-            void this.handle(req, res);
+            this.handle(req, res).catch((err: Error) => {
+                this.logger.error(`Error handling SOAP from ${clientAddress(req, this.config.ocpp.trustedProxies)}: ${err.stack ?? err}`);
+                if (!res.headersSent) res.status(500).type('application/soap+xml').send(faultEnvelope('Receiver', 'InternalError', 'Internal server error'));
+            });
         });
         return router;
     }
@@ -94,7 +96,7 @@ export class SoapAdapter {
         try {
             parsed = await parseSoap(raw);
         } catch (err) {
-            this.logger.warn(`Unparseable SOAP from ${clientIp(req)} to ${req.url}: ${(err as Error).message}`);
+            this.logger.warn(`Unparseable SOAP from ${clientAddress(req, this.config.ocpp.trustedProxies)} to ${req.url}: ${(err as Error).message}`);
             res.status(400).type('application/soap+xml').send(faultEnvelope('Sender', 'FormationViolation', 'Malformed XML'));
             return;
         }
@@ -113,9 +115,19 @@ export class SoapAdapter {
         const fromAddress = text(getCI(getCI(header, 'From'), 'Address'));
         const endpoint = fromAddress && fromAddress !== ANONYMOUS ? fromAddress : undefined;
 
-        const session = this.session(identity, version);
-        if (endpoint) session.endpoint = endpoint;
-        const protocol = session.protocol;
+        // checked before anything about the charger changes: an unchecked request must not move where its commands go
+        const ip = clientAddress(req, this.config.ocpp.trustedProxies);
+        const admission = await this.gate.admit(identity, { ip, authorization: req.headers.authorization, viaProxy: !!req.headers['x-forwarded-for'] });
+        if (!admission.ok && admission.charger) {
+            if (admission.status === 401) res.set('WWW-Authenticate', 'Basic realm="OCPP", charset="UTF-8"');
+            res.status(admission.status).type('application/soap+xml')
+                .send(faultEnvelope('Sender', 'SecurityError', 'This charger is not allowed to connect this way'));
+            return;
+        }
+        // unregistered chargers get no session; the handlers answer them (BootNotification Rejected, otherwise a fault)
+        const session = admission.ok ? this.session(identity, version) : null;
+        if (session && endpoint) session.endpoint = endpoint;
+        const protocol = session?.protocol ?? protocolFor(version);
 
         this.messages.record({ identity, protocol, direction: 'in', kind: 'CALL', action, messageId, payload: parsed.payload, raw });
 
@@ -132,7 +144,7 @@ export class SoapAdapter {
         };
 
         try {
-            send(await this.handlers.handle({ identity, protocol, version, ip: clientIp(req), endpoint }, action, parsed.payload));
+            send(await this.handlers.handle({ identity, protocol, version, ip, endpoint }, action, parsed.payload));
         } catch (err) {
             if (err instanceof OcppError && err.code === 'NotImplemented') {
                 // lenient: an empty answer, so the charger does not keep retrying

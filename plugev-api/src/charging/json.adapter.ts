@@ -1,13 +1,15 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { IncomingMessage } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import type { Duplex } from 'node:stream';
 import { WebSocket, WebSocketServer } from 'ws';
+import { APP_CONFIG, AppConfig } from '../config/config';
+import { clientAddress } from './charger-credentials';
+import { ChargerGate } from './charger-gate';
 import { ChargingHandlers } from './charging.handlers';
 import { ChargerDirectory, ChargerSession, ConnectionRegistry, LiveState, OcppMessageLog } from './charging.state';
 import { CommandError, OcppError } from './ocpp/common';
 import type { Payload } from './ocpp/xml';
-import { clientIp } from './soap.adapter';
 
 const PROTOCOL = 'ocpp1.6-json' as const;
 const PING_INTERVAL_MS = 30000;
@@ -41,6 +43,8 @@ export class JsonAdapter {
         private readonly directory: ChargerDirectory,
         private readonly live: LiveState,
         private readonly messages: OcppMessageLog,
+        private readonly gate: ChargerGate,
+        @Inject(APP_CONFIG) private readonly config: AppConfig,
     ) {}
 
     start(): void {
@@ -71,24 +75,38 @@ export class JsonAdapter {
         this.wss = null;
     }
 
-    /** For the HTTP server's 'upgrade' event. Only chargers registered in the portal may connect. */
+    /**
+     * For the HTTP server's 'upgrade' event. Only chargers registered in the portal may connect, and only as their
+     * security settings allow (password and allowed addresses, see ChargerGate).
+     */
     async handleUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer): Promise<void> {
         const identity = identityFromUrl(req.url);
-        const refuse = (status: string) => {
-            socket.write(`HTTP/1.1 ${status}\r\n\r\n`);
+        const refuse = (status: string, headers: string[] = []) => {
+            socket.write([`HTTP/1.1 ${status}`, ...headers, 'Content-Length: 0', '', ''].join('\r\n'));
             socket.destroy();
         };
         if (!identity || !this.wss) return refuse('400 Bad Request');
-        const charger = await this.directory.find(identity).catch(() => null);
-        if (!charger) {
-            this.logger.warn(`[${identity}] Refused WebSocket: no charger with this Charger ID is registered in the admin portal`);
-            return refuse('404 Not Found');
+        const ip = clientAddress(req, this.config.ocpp.trustedProxies);
+        let admission;
+        try {
+            admission = await this.gate.admit(identity, { ip, authorization: req.headers.authorization, viaProxy: !!req.headers['x-forwarded-for'] });
+        } catch (err) {
+            this.logger.error(`[${identity}] Could not check the connection: ${(err as Error).message}`);
+            return refuse('503 Service Unavailable');
         }
-        this.wss.handleUpgrade(req, socket, head, ws => this.onConnection(ws, req, identity));
+        if (!admission.ok) {
+            if (!admission.charger) {
+                this.logger.warn(`[${identity}] Refused WebSocket: no charger with this Charger ID is registered in the admin portal`);
+                return refuse('404 Not Found');
+            }
+            return admission.status === 401
+                ? refuse('401 Unauthorized', ['WWW-Authenticate: Basic realm="OCPP", charset="UTF-8"'])
+                : refuse('403 Forbidden');
+        }
+        this.wss.handleUpgrade(req, socket, head, ws => this.onConnection(ws, identity, ip));
     }
 
-    private onConnection(ws: AliveSocket, req: IncomingMessage, identity: string): void {
-        const ip = clientIp(req as never);
+    private onConnection(ws: AliveSocket, identity: string, ip: string): void {
         this.logger.log(`[${identity}] WebSocket connected from ${ip} (subprotocol: ${ws.protocol || 'none'})`);
 
         const previous = this.registry.get(identity) as (ChargerSession & { ws?: WebSocket }) | undefined;
@@ -124,6 +142,10 @@ export class JsonAdapter {
             ws,
             lastSeen: new Date(),
             isConnected: () => ws.readyState === WebSocket.OPEN,
+            close: reason => {
+                this.logger.log(`[${identity}] Closing the connection: ${reason}`);
+                ws.close(1008, reason.slice(0, 120));
+            },
             sendCommand: (action, payload, timeoutMs) => {
                 const run = () => sendCall(action, payload, timeoutMs);
                 const p = queue.then(run, run);

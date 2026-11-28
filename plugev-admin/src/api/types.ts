@@ -245,6 +245,24 @@ export interface Evse {
     live?: EvseLive | null;
 }
 
+/** Why the platform last refused a connection from the charger. */
+export type ConnectionRefusal = 'address_not_allowed' | 'password_missing' | 'password_wrong' | 'not_secured';
+
+/** How a charger proves itself when it connects (spec 7.5). The password itself is only shown once, when set. */
+export interface ChargerSecurity {
+    passwordSet: boolean;
+    passwordSetAt: string | null;
+    /** Addresses or CIDR ranges it may connect from; empty = from anywhere. */
+    allowedAddresses: string[];
+    /** Has a password or allowed addresses. */
+    secured: boolean;
+    /** Whether the platform accepts chargers that are not secured (off in production). */
+    unsecuredAccepted: boolean;
+    /** Where it last connected from. */
+    lastAddress: string | null;
+    lastRefusal: { at: string; address: string | null; reason: ConnectionRefusal } | null;
+}
+
 export interface EvseInput {
     name: string | null;
     protocol: EvseProtocol;
