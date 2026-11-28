@@ -117,7 +117,11 @@ interface ChargerDraft {
     model: string;
     serialNumber: string;
     power: string;
+    commandUrl: string;
 }
+
+/** Empty, or an http(s) address (the API checks the same). */
+const COMMAND_URL = /^https?:\/\/[^\s/$.?#][^\s]*$/i;
 
 /**
  * Registers a charger with its connectors, or edits one when `evse` is given.
@@ -139,6 +143,7 @@ export function ChargerDialog({ evse, stationId, stations, onClose, onSaved }: {
         model: evse?.model ?? '',
         serialNumber: evse?.serialNumber ?? '',
         power: evse?.maxPowerKw ? String(evse.maxPowerKw) : '',
+        commandUrl: evse?.commandUrl ?? '',
     });
     const [station, setStation] = useState(evse?.stationId ?? stationId ?? '');
     const [connectors, setConnectors] = useState<ConnectorDraft[]>([emptyConnector]);
@@ -152,8 +157,10 @@ export function ChargerDialog({ evse, stationId, stations, onClose, onSaved }: {
     const identityOk = IDENTITY.test(draft.protocolIdentity.trim());
     const connectorInputs = connectors.map((c, i) => connectorInput(c, i + 1));
     const stationChoices = (stations ?? []).filter((s) => !evse || s.networkId === evse.networkId);
+    const soap = draft.protocol === 'OCPP_1_5_S' || draft.protocol === 'OCPP_1_6_S';
+    const commandUrlOk = !soap || !draft.commandUrl.trim() || COMMAND_URL.test(draft.commandUrl.trim());
     const valid =
-        identityOk && draft.protocol && draft.vendor.trim() && draft.model.trim() && power !== undefined && station &&
+        commandUrlOk && identityOk && draft.protocol && draft.vendor.trim() && draft.model.trim() && power !== undefined && station &&
         (evse || connectorInputs.every(Boolean));
 
     const submit = async (e: FormEvent) => {
@@ -171,6 +178,8 @@ export function ChargerDialog({ evse, stationId, stations, onClose, onSaved }: {
             model: draft.model.trim(),
             serialNumber: draft.serialNumber.trim() || null,
             maxPowerKw: power ?? null,
+            // only SOAP chargers take commands at an address; it is set when editing
+            ...(evse ? { commandUrl: soap ? draft.commandUrl.trim() || null : null } : {}),
         };
         try {
             onSaved(
@@ -262,6 +271,17 @@ export function ChargerDialog({ evse, stationId, stations, onClose, onSaved }: {
                     placeholder="Fast charger 1"
                     hint="A label for admins. Without one, the charger ID is shown."
                 />
+                {evse && soap && (
+                    <TextField
+                        label="Command address (optional)"
+                        value={draft.commandUrl}
+                        onChange={(v) => set({ commandUrl: v })}
+                        maxLength={500}
+                        placeholder="http://203.0.113.7:8765/"
+                        hint="Only when the charger is behind a router: its public address with port forwarding. Leave empty to use the address the charger reports."
+                        error={touched && !commandUrlOk ? 'Enter an http:// or https:// address, or leave it empty.' : null}
+                    />
+                )}
 
                 {!evse && (
                     <div className="form-section">

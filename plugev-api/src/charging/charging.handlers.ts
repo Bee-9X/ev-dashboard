@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import { APP_CONFIG, AppConfig } from '../config/config';
+import { CommandConfirmations } from './charging.confirmations';
 import { Charger, ChargerDirectory, LiveState } from './charging.state';
 import { date, extractSamples, MeterSample, meterKey, num, OcppError, Protocol, str } from './ocpp/common';
 import type { OcppVersion, Payload } from './ocpp/xml';
@@ -47,6 +48,7 @@ export class ChargingHandlers {
         private readonly db: DataSource,
         private readonly directory: ChargerDirectory,
         private readonly live: LiveState,
+        private readonly confirmations: CommandConfirmations,
         @Inject(APP_CONFIG) private readonly config: AppConfig,
     ) {
         this.handlers = {
@@ -105,20 +107,23 @@ export class ChargingHandlers {
             serialNumber: str(p.chargeBoxSerialNumber) ?? str(p.chargePointSerialNumber),
             firmwareVersion: str(p.firmwareVersion),
         });
+        await this.confirmations.booted(c.id);
         return this.bootResponse(ctx.version, 'Accepted');
     }
 
     private async status(c: Charger, ctx: InboundContext, p: Payload): Promise<Payload> {
+        const connectorNumber = num(p.connectorId) ?? 0;
         await this.live.event(c, {
             type: 'connector_status',
             protocol: ctx.protocol,
-            connectorNumber: num(p.connectorId) ?? 0,
+            connectorNumber,
             status: str(p.status),
             errorCode: str(p.errorCode),
             info: str(p.info),
             vendorErrorCode: str(p.vendorErrorCode),
             statusAt: date(p.timestamp)?.toISOString(),
         });
+        await this.confirmations.statusReported(c.id, connectorNumber, str(p.status));
         return {};
     }
 
@@ -130,6 +135,8 @@ export class ChargingHandlers {
         if (!idTag) return 'Invalid';
         if (c.status === 'disabled') return 'Blocked';
         if (connectorNumber !== undefined && c.connectors[connectorNumber] === 'disabled') return 'Blocked';
+        // the tag the portal starts sessions with
+        if (idTag === this.config.ocpp.remoteIdTag) return 'Accepted';
         const allow = this.config.ocpp.idTagAllowList;
         return allow.length === 0 || allow.includes(idTag) ? 'Accepted' : 'Invalid';
     }
@@ -141,7 +148,7 @@ export class ChargingHandlers {
         const meterStart = num(p.meterStart) ?? null;
         const status = this.idTagStatus(c, idTag, connectorNumber);
 
-        const transactionId = await this.db.transaction(async m => {
+        const { transactionId, sessionId } = await this.db.transaction(async m => {
             // a charger resends StartTransaction when it missed our answer: give it the same id
             const [existing] = await m.query(
                 `SELECT ocpp_transaction_id FROM charging_sessions
@@ -151,7 +158,7 @@ export class ChargingHandlers {
             );
             if (existing) {
                 this.logger.log(`[${c.protocolIdentity}] Duplicate StartTransaction, re-using transaction ${existing.ocpp_transaction_id}`);
-                return existing.ocpp_transaction_id as number;
+                return { transactionId: existing.ocpp_transaction_id as number, sessionId: null };
             }
             // a new start on a connector with an open session means its stop was missed
             await m.query(
@@ -165,12 +172,13 @@ export class ChargingHandlers {
                      (network_id, station_id, evse_id, connector_number, ocpp_transaction_id, id_tag, reservation_id,
                       started_at, meter_start_wh, status, notes)
                  VALUES ($1, $2, $3, $4, nextval('ocpp_transaction_id_seq'), $5, $6, $7, $8, 'active', $9)
-                 RETURNING ocpp_transaction_id`,
+                 RETURNING id, ocpp_transaction_id`,
                 [c.networkId, c.stationId, c.id, connectorNumber, idTag ?? null, num(p.reservationId) ?? null, startedAt, meterStart,
                     status === 'Accepted' ? [] : [`idTag ${idTag ?? '(none)'} not accepted (${status})`]],
             );
-            return row.ocpp_transaction_id as number;
+            return { transactionId: row.ocpp_transaction_id as number, sessionId: row.id as string };
         });
+        if (sessionId) await this.confirmations.sessionStarted(c.id, connectorNumber, idTag ?? null, sessionId);
         return { transactionId, idTagInfo: { status } };
     }
 
@@ -181,7 +189,7 @@ export class ChargingHandlers {
         const stopIdTag = str(p.idTag)?.slice(0, 50);
         const reason = str(p.reason)?.slice(0, 50) ?? null;
 
-        await this.db.transaction(async m => {
+        const stoppedSessionId = await this.db.transaction(async m => {
             const [session] = transactionId === undefined ? [] : await m.query(
                 `SELECT id, status, connector_number FROM charging_sessions WHERE evse_id = $1 AND ocpp_transaction_id = $2 FOR UPDATE`,
                 [c.id, transactionId],
@@ -221,7 +229,9 @@ export class ChargingHandlers {
             }
             const samples = extractSamples(p);
             if (samples.length) await this.storeSamples(m, c, samples, { connectorNumber, sessionId, source: 'StopTransaction' });
+            return sessionId;
         });
+        if (transactionId !== undefined) await this.confirmations.sessionStopped(c.id, transactionId, stoppedSessionId);
 
         return stopIdTag ? { idTagInfo: { status: this.idTagStatus(c, stopIdTag) } } : {};
     }

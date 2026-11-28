@@ -12,6 +12,7 @@ import { connectorLabel, evseTitle, formatKw, liveBadge, liveLabel, PROTOCOL_LAB
 import { formatDuration, formatEnergy, formatPower } from '../sessions/sessionFormat';
 import { SessionsSection } from '../sessions/SessionsTable';
 import { ChargerDialog, ConnectorDialog } from './ChargerDialogs';
+import { ConfigurationSection, ConnectorCommands, RemoteControlSection, useCommands } from './RemoteControl';
 
 const CONSOLE_URL = import.meta.env.VITE_CONSOLE_URL as string | undefined;
 const LIVE_REFRESH_MS = 15000;
@@ -36,6 +37,12 @@ export function ChargerDetailPage() {
     const [dialog, setDialog] = useState<DialogState | null>(null);
     const canNetworks = can('network.read');
     const canEdit = can('evse.update') && network?.status !== 'archived';
+    // a command that settled may have changed the charger's status and sessions: reload both quietly
+    const [refreshKey, setRefreshKey] = useState(0);
+    const commands = useCommands(evseId, () => {
+        api.getEvse(evseId).then(setEvse, () => undefined);
+        setRefreshKey((k) => k + 1);
+    });
 
     const load = useCallback(async () => {
         setError(null);
@@ -192,6 +199,7 @@ export function ChargerDetailPage() {
                                         {c.activeSession && (
                                             <ChargingNow session={c.activeSession} canOpen={can('session.read')} online={evse.live?.online ?? false} />
                                         )}
+                                        {network?.status !== 'archived' && <ConnectorCommands evse={evse} connector={c} issue={commands.issue} />}
                                         <p className="small">
                                             QR code <strong className="code-text">{c.qrCode}</strong>
                                         </p>
@@ -222,13 +230,18 @@ export function ChargerDetailPage() {
                         {evse.connectors.length === 0 && <div className="empty">No connectors yet.</div>}
                     </section>
 
+                    <RemoteControlSection evse={evse} commands={commands.commands} error={commands.error} issue={commands.issue} />
+
                     {can('session.read') && (
                         <SessionsSection
                             filter={{ evseId: evse.id }}
                             showCharger={false}
                             empty="No charging sessions on this charger yet."
+                            refreshKey={refreshKey}
                         />
                     )}
+
+                    {canEdit && <ConfigurationSection evse={evse} commands={commands.commands} issue={commands.issue} />}
 
                     {dialog?.kind === 'edit' && (
                         <ChargerDialog evse={evse} stations={stations} onClose={() => setDialog(null)} onSaved={(e) => saved(e, 'Charger updated.')} />

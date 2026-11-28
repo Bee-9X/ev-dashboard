@@ -39,6 +39,8 @@ const schema = z.object({
     OCPP_MESSAGE_RETENTION_DAYS: int.min(1).max(365).default(30),
     OCPP_COMMAND_TIMEOUT_MS: int.min(1000).max(120000).default(30000),
     OCPP_SOAP_COMMAND_TIMEOUT_MS: int.min(1000).max(120000).default(15000),
+    // idTag sent with a remote start from the portal; always accepted (unless the charger or connector is disabled)
+    OCPP_REMOTE_ID_TAG: z.string().trim().min(1).max(20).default('PLUGEV-ADMIN'),
     TRUST_PROXY: bool.default(false),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
     MAIL_TRANSPORT: z.enum(['log', 'smtp']).default('log'),
@@ -85,6 +87,7 @@ export interface AppConfig {
         messageRetentionDays: number;
         commandTimeoutMs: number;
         soapCommandTimeoutMs: number;
+        remoteIdTag: string;
     };
     trustProxy: boolean;
     logLevel: string;
@@ -135,6 +138,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
             messageRetentionDays: e.OCPP_MESSAGE_RETENTION_DAYS,
             commandTimeoutMs: e.OCPP_COMMAND_TIMEOUT_MS,
             soapCommandTimeoutMs: e.OCPP_SOAP_COMMAND_TIMEOUT_MS,
+            remoteIdTag: e.OCPP_REMOTE_ID_TAG,
         },
         qrLinkBase: (e.QR_LINK_BASE ?? `${e.PORTAL_URL.replace(/\/+$/, '')}/c`).replace(/\/+$/, ''),
         trustProxy: e.TRUST_PROXY,

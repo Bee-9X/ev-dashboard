@@ -102,6 +102,9 @@ Charger settings, all with working defaults:
 | `CHARGER_OFFLINE_AFTER_SEC` | `120` | No message for this long → shown offline |
 | `OCPP_ID_TAG_ALLOWLIST` | (empty) | Comma separated idTags allowed to charge; empty = all |
 | `OCPP_MESSAGE_RETENTION_DAYS` | `30` | How long the OCPP message log is kept |
+| `OCPP_REMOTE_ID_TAG` | `PLUGEV-ADMIN` | The card (idTag) a remote start from the portal uses unless another is typed in; always accepted |
+| `OCPP_COMMAND_TIMEOUT_MS` | `30000` | How long to wait for an OCPP 1.6 (JSON) charger to answer a command |
+| `OCPP_SOAP_COMMAND_TIMEOUT_MS` | `15000` | The same for SOAP chargers |
 
 Email: `MAIL_TRANSPORT=log` (default) writes emails, links included, to the API terminal instead of sending them.
 
@@ -132,11 +135,16 @@ Open the project folder in VS Code and press **Ctrl+Shift+B** (or *Terminal → 
 
 1. **PLUG EV: checks** runs first: Node, `plugev-api\.env`, packages, PostgreSQL, free ports. If something is wrong,
    it says what and nothing else starts.
-2. Then each app gets its own VS Code terminal: **PLUG EV: API**, **PLUG EV: ngrok**, **PLUG EV: admin portal**.
+2. Then each app gets its own VS Code terminal: **PLUG EV: API**, **PLUG EV: ngrok**, **PLUG EV: admin portal**, and
+   **PLUG EV: simulator** (the charger simulator `SIM-001`, see below).
 3. **PLUG EV: status** waits until they're up, opens http://localhost:3000 and prints the charger address
    `http://<ngrok host>/ocpp/c1` (also copied to the clipboard).
 
-Stop: *Terminal → Run Task… → **PLUG EV: stop***. The tasks are in `.vscode/tasks.json`.
+**The charger simulator** `SIM-001` (OCPP 1.6 JSON, 2 connectors) starts with the rest. It connects once a charger
+with Charger ID `SIM-001` and protocol *OCPP 1.6 (JSON)* is registered in the portal; until then it keeps retrying,
+which is harmless. Without it: *Terminal → Run Task… → **PLUG EV: start without simulator***.
+
+Stop: *Terminal → Run Task… → **PLUG EV: stop*** (the simulator too). The tasks are in `.vscode/tasks.json`.
 
 ### Or: one script, Windows Terminal tabs
 
@@ -145,7 +153,8 @@ Double-click **`start-dev.cmd`** in the project folder (or run `.\start-dev.cmd`
 1. checks Node, `plugev-api\.env` and the packages (runs `npm install` the first time);
 2. checks PostgreSQL is running (and starts it if it can);
 3. checks ports 4000, 3003 and 3000 are free, and tells you what holds them if not (e.g. the old gateway);
-4. opens one Windows Terminal window with a tab each for the **API**, **ngrok** and the **admin portal**;
+4. opens one Windows Terminal window with a tab each for the **API**, **ngrok**, the **admin portal** and the charger
+   **simulator** `SIM-001`;
 5. waits until they're up, opens http://localhost:3000, and prints the charger address
    `http://<ngrok host>/ocpp/c1`, already copied to the clipboard for the tablet.
 
@@ -153,7 +162,8 @@ Stop everything with **`stop-dev.cmd`**. The tabs stay open so you can still rea
 PostgreSQL keeps running.
 
 Options: `.\start-dev.cmd -NoNgrok` (no charger from outside), `-NoBrowser`, `-ChargerId SIM-001` (the ID in the
-printed address), `-NoWindowsTerminal` (separate PowerShell windows instead of tabs). The scripts are in `scripts\`.
+printed address), `-NoWindowsTerminal` (separate PowerShell windows instead of tabs), `-NoSimulator` (no charger
+simulator), `-SimulatorId <ID>` (the simulator's Charger ID, default `SIM-001`). The scripts are in `scripts\`.
 
 ### By hand
 
@@ -279,9 +289,20 @@ What to check on branch `phase-3-charging-module`, with the old gateway and Mong
 | 6 | Disable a charger in the portal, then let it boot or start | charging refused; it stays online and its status keeps updating |
 
 **Charging sessions** show under *Stations → Charging Sessions*, on each charger, station and network page, and on a
-connector while it charges (*Charging now*). There's no remote start from the portal yet (step 3), and the tablet can't
-simulate charging, so make one with the simulator's `--charge 1` option (section C). To look at the stored data
-directly:
+connector while it charges (*Charging now*). The tablet can't simulate charging, so make one with the simulator: its
+`--charge 1` option (section C), or *Start charging* on its connector in the portal.
+
+**Remote commands** are on the charger page:
+- on each connector: *Start charging*, *Stop charging*, *Unlock* and *Make (un)available*;
+- under **Remote Control**: *Soft reset*, *Hard reset* and *Make charger (un)available*, with the recent commands, the
+  charger's answer and whether its later messages confirmed it;
+- **Configuration**: read and change the charger's settings.
+
+The simulator answers all of them. A SOAP charger like c1 takes commands at the address it reports (the tablet: its LAN
+address), or at the *Command address* set under *Edit charger* (for a charger behind a router, see
+[docs/phase-0/setec-site-setup.md](docs/phase-0/setec-site-setup.md)).
+
+To look at the stored data directly:
 
 ```
 psql -U postgres -d plugev
@@ -361,10 +382,11 @@ Docker and the local setup both use ports 4000 and 3003, so run one or the other
 
 ---
 
-## H. Old gateway (only if you need remote commands before step 3)
+## H. Old gateway (no longer needed)
 
-Remote start/stop, reset and the other commands still come from the Phase 0 charger console until step 3 of
-[docs/phase-3/README.md](docs/phase-3/README.md). For a test that needs them:
+Remote commands are in the admin portal since Phase 3 step 3, so the Phase 0 gateway and its charger console are not
+needed any more. They are removed in step 4 ([docs/phase-3/README.md](docs/phase-3/README.md)). Until then, to compare
+with the old console:
 
 1. In `plugev-api\.env` set `OCPP_ENABLED=false` and a `GATEWAY_API_KEY` (32+ characters), then restart the API
    (this frees port 3003).

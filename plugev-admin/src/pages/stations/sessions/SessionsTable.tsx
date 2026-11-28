@@ -98,8 +98,10 @@ export function SessionsTable({ sessions, showCharger = true, showStation = fals
 }
 
 /** The latest sessions of one charger, station or network, as a widget on its page. */
-export function SessionsSection({ filter, showCharger = true, showStation = false, empty, allLink }: {
+export function SessionsSection({ filter, showCharger = true, showStation = false, empty, allLink, refreshKey = 0 }: {
     filter: Pick<SessionQuery, 'networkId' | 'stationId' | 'evseId'>;
+    /** Changing it reloads the list quietly (e.g. after a remote start or stop). */
+    refreshKey?: number;
     showCharger?: boolean;
     showStation?: boolean;
     empty: string;
@@ -130,6 +132,10 @@ export function SessionsSection({ filter, showCharger = true, showStation = fals
     useEffect(() => {
         void load();
     }, [load]);
+
+    useEffect(() => {
+        if (refreshKey) void load(true);
+    }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // keep sessions in progress current while the page is open
     const charging = data?.items.some((s) => s.status === 'active') ?? false;

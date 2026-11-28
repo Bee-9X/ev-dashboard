@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { GatewayModule } from '../gateway/gateway.module';
+import { ChargerCommander } from './charging.commands';
+import { CommandConfirmations } from './charging.confirmations';
 import { ChargingHandlers } from './charging.handlers';
 import { ChargingServer } from './charging.server';
 import { ChargerDirectory, ConnectionRegistry, LiveState, OcppMessageLog } from './charging.state';
@@ -12,7 +14,10 @@ import { SoapAdapter } from './soap.adapter';
  */
 @Module({
     imports: [GatewayModule],
-    providers: [ChargerDirectory, ConnectionRegistry, LiveState, OcppMessageLog, ChargingHandlers, SoapAdapter, JsonAdapter, ChargingServer],
-    exports: [ConnectionRegistry, ChargingServer],
+    providers: [
+        ChargerDirectory, ConnectionRegistry, LiveState, OcppMessageLog, ChargingHandlers, SoapAdapter, JsonAdapter, ChargingServer,
+        ChargerCommander, CommandConfirmations,
+    ],
+    exports: [ConnectionRegistry, ChargingServer, ChargerCommander],
 })
 export class ChargingModule {}

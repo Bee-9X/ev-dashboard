@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
-    ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Matches, Max,
+    ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, IsUrl, IsUUID, Matches, Max,
     MaxLength, Min, ValidateIf, ValidateNested,
 } from 'class-validator';
 import { PageQueryDto } from '../common/pagination';
@@ -144,6 +144,15 @@ export class UpdateEvseDto {
     @ApiPropertyOptional({ enum: EQUIPMENT_STATUSES, description: 'disabled: not offered for charging; history is kept' })
     @ValidateIf(notNull) @IsIn(EQUIPMENT_STATUSES)
     status?: (typeof EQUIPMENT_STATUSES)[number];
+
+    @ApiPropertyOptional({
+        nullable: true, example: 'http://203.0.113.7:8765/',
+        description: 'SOAP chargers only: send commands here instead of the address the charger reports, e.g. the public address of its router with port forwarding. Empty or null clears it.',
+    })
+    @IsOptional() @Transform(trimOrNull)
+    @IsUrl({ protocols: ['http', 'https'], require_protocol: true, require_tld: false }, { message: 'commandUrl must be an http:// or https:// address' })
+    @MaxLength(500)
+    commandUrl?: string | null;
 }
 
 export class EvseListQueryDto extends PageQueryDto {

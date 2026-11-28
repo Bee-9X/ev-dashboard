@@ -187,7 +187,7 @@ export class EvsesService {
         }
 
         const changes: Record<string, { from: unknown; to: unknown }> = {};
-        for (const key of ['stationId', 'name', 'protocol', 'protocolIdentity', 'vendor', 'model', 'serialNumber', 'maxPowerKw', 'status'] as const) {
+        for (const key of ['stationId', 'name', 'protocol', 'protocolIdentity', 'vendor', 'model', 'serialNumber', 'maxPowerKw', 'status', 'commandUrl'] as const) {
             const to = dto[key];
             if (to !== undefined && to !== evse[key]) changes[key] = { from: evse[key], to };
         }

@@ -507,3 +507,4 @@ code, .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .back-link { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 12px; color: var(--text-soft); }
 .danger-zone { border-color: rgba(229, 72, 77, 0.3); }
 .table td.nowrap { white-space: nowrap; }
+.command-row { margin: 4px 0 10px; gap: 8px; }

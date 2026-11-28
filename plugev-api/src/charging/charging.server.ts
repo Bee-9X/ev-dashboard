@@ -104,8 +104,16 @@ export class ChargingServer implements OnApplicationBootstrap, OnApplicationShut
         }
     }
 
-    /** Chargers heard from too long ago go offline (OCPP-J chargers with an open WebSocket stay online). */
+    /**
+     * Chargers heard from too long ago go offline (OCPP-J chargers with an open WebSocket stay online), and commands
+     * that never got an answer (e.g. the API restarted while waiting) time out.
+     */
     async sweep(): Promise<void> {
+        await this.db.query(
+            `UPDATE charger_commands SET status = 'timed_out', answered_at = now(),
+                 error = COALESCE(error, 'No answer from the charger in time')
+             WHERE status IN ('queued', 'sent') AND expires_at < now()`,
+        );
         const after = this.config.chargerOfflineAfterSec;
         const stale: { id: string; protocol_identity: string }[] = await this.db.query(
             `SELECT e.id, e.protocol_identity FROM evse_live_states l JOIN evses e ON e.id = l.evse_id

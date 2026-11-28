@@ -1,6 +1,6 @@
 import { session } from './session';
 import type {
-    ApiErrorBody, ChargingSession, ChargingSessionDetail, ConnectorInput, EnrolledSignIn, EquipmentStatus, Evse, EvseInput, LoginResult, Me, MfaSetup, MfaStatus, Network,
+    ApiErrorBody, ChargerCommand, ChargerConfiguration, ChargingSession, ChargingSessionDetail, ConnectorInput, EnrolledSignIn, EquipmentStatus, Evse, EvseInput, LoginResult, Me, MfaSetup, MfaStatus, Network,
     NetworkStatus, Page, RoleTarget, SessionQuery, SignedIn, Station, StationDetails, StationStatus, TokenResponse, UserStatus, UserSummary,
 } from './types';
 
@@ -50,7 +50,8 @@ async function send(path: string, opts: RequestOptions, token: string | null): P
 }
 
 async function parse<T>(res: Response): Promise<T> {
-    if (res.status === 204 || res.status === 202) return undefined as T;
+    // 202 may carry a body (remote commands answer with the queued command); an empty one is undefined below
+    if (res.status === 204) return undefined as T;
     const text = await res.text();
     let data: unknown = undefined;
     if (text) {
@@ -190,7 +191,24 @@ export const api = {
 
     sessionsPage: (q: SessionQuery) => request<Page<ChargingSession>>(`/sessions${query({ ...q })}`),
     getSession: (id: string) => request<ChargingSessionDetail>(`/sessions/${encodeURIComponent(id)}`),
+
+    /** Remote commands: each answers at once with the command (queued); its result comes later. */
+    remoteStart: (evseId: string, body: { connectorNumber?: number; idTag?: string }) => command(evseId, 'remote-start', body),
+    remoteStop: (evseId: string, connectorNumber: number) => command(evseId, 'remote-stop', { connectorNumber }),
+    reset: (evseId: string, type: 'Soft' | 'Hard') => command(evseId, 'reset', { type }),
+    unlock: (evseId: string, connectorNumber: number) => command(evseId, 'unlock', { connectorNumber }),
+    setAvailability: (evseId: string, connectorNumber: number, available: boolean) =>
+        command(evseId, 'availability', { connectorNumber, available }),
+    readConfiguration: (evseId: string) => command(evseId, 'get-configuration', {}),
+    changeConfiguration: (evseId: string, key: string, value: string) => command(evseId, 'change-configuration', { key, value }),
+    commandsPage: (evseId: string, q: { page?: number; pageSize?: number }) =>
+        request<Page<ChargerCommand>>(`/evses/${encodeURIComponent(evseId)}/commands${query(q)}`),
+    configuration: (evseId: string) => request<ChargerConfiguration>(`/evses/${encodeURIComponent(evseId)}/configuration`),
 };
+
+function command(evseId: string, name: string, body: object): Promise<ChargerCommand> {
+    return request<ChargerCommand>(`/evses/${encodeURIComponent(evseId)}/commands/${name}`, { method: 'POST', body });
+}
 
 /** ?a=1&b=x, skipping empty values. */
 function query(params: Record<string, string | number | undefined>): string {
