@@ -1,5 +1,6 @@
-# Editor settings (personal, not shared)
-.vscode/
+# Editor settings are personal; only the shared VS Code tasks (PLUG EV start/stop) are committed
+.vscode/*
+!.vscode/tasks.json
 
 # Secrets for docker-compose.yml (see compose.env.example)
 .env

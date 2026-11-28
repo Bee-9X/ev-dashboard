@@ -28,15 +28,8 @@ ADR-004/007). The charger page shows:
 The terminals tables show each charger's connection. Sessions, meter values and remote commands through the platform
 come next (E3.5, E3.6); until then the charger console stays in use for those.
 
-To turn the link on, set the same key in both apps (at least 32 characters):
-
-| App | Setting |
-|---|---|
-| `plugev-api/.env` | `GATEWAY_API_KEY=<key>` |
-| `plugev-server/.env` | `PLATFORM_API_URL=http://localhost:4000/api/v1` and `PLATFORM_GATEWAY_KEY=<key>` |
-
-Restart both. The gateway logs `Platform link on`, and warns once for each charger that is not registered in the
-admin portal.
+Since 2026-11-27 chargers connect to the API itself (charging module), so no link or key is needed; see
+[../phase-3/README.md](../phase-3/README.md).
 
 ## How the pieces fit
 

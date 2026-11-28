@@ -64,6 +64,20 @@ Each record is **Proposed** until approved at Phase 0 sign-off. The spec's techn
 - The core consumes those events and sends commands back through the broker, with correlation IDs (§5.3).
 - Node handles thousands of WebSocket connections per instance. Revisit Go only if §12.1 capacity numbers require it.
 
+**Revised 2026-11-27 (decided with the product owner): one app with a separate charging module.**
+- Running and managing a second service (plus MongoDB and a shared key) is not worth it for the pilot's scale.
+- The gateway's protocol work moves into `plugev-api` as the **charging module**:
+  - OCPP 1.5/1.6 SOAP and OCPP 1.6J adapters, on their own port (3003, the one ngrok exposes);
+  - the admin API (port 4000) is never exposed to chargers.
+- Charger data, sessions, meter values and the OCPP message log move to PostgreSQL. MongoDB is no longer used.
+- The module keeps the canonical events (ADR-007) as its internal boundary, and `POST /gateway/events` stays available:
+  if capacity (§12.1) or separate restarts ever need it, the module can run as its own service again without a rewrite.
+- Trade-off accepted: restarting the API briefly drops OCPP-J chargers (they reconnect on their own); SOAP chargers
+  are not affected, since every SOAP message is a separate request.
+- The message broker (RabbitMQ) is not needed while gateway and core share a process.
+- `plugev-server`, the Phase 0 portal and MongoDB are retired once remote commands are in the platform (Phase 3 plan:
+  [../phase-3/README.md](../phase-3/README.md)).
+
 ---
 
 ## ADR-005 – New admin portal in React + TypeScript (retire the template)

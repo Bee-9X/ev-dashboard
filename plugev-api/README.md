@@ -24,39 +24,24 @@ platform), protocol, make, model and serial number, and one or two connectors wi
 Nothing is deleted: chargers and connectors are disabled instead. Each connector has a QR code: `QR_LINK_BASE/<code>`
 (default `PORTAL_URL/c/<code>`).
 
-**Live charger state** comes from the gateway (`plugev-server`), which posts what chargers do to `POST /gateway/events`
-with the shared `GATEWAY_API_KEY` in `X-Gateway-Key`: connected, disconnected, seen, boot (make, model, serial,
-firmware) and connector status. Events are matched to chargers by their OCPP identity, and applied so that older news
-never overwrites newer state. A charger counts as offline when nothing was reported for `CHARGER_OFFLINE_AFTER_SEC`.
-`GET /evses` and `GET /evses/:id` include it as `live` (charger) and `connectors[].live`.
+**Chargers connect to the API itself** (charging module, `src/charging`; ADR-004 revised): OCPP 1.5/1.6 SOAP and
+OCPP 1.6J on their own port, `OCPP_PORT` (3003), at `/ocpp/<Charger ID>`. Only chargers registered in the portal are
+served. The module records live state (online, last seen, boot information, connector statuses), charging sessions,
+meter values and every OCPP message (kept `OCPP_MESSAGE_RETENTION_DAYS`) in PostgreSQL. `GET /evses` and
+`GET /evses/:id` include the live state as `live` and `connectors[].live`. Settings and plan:
+[../docs/phase-3/README.md](../docs/phase-3/README.md).
+
+A simulated OCPP 1.6J charger for testing: `npm run simulate -- --url ws://localhost:3003/ocpp/SIM-001 --connectors 2`
+(register `SIM-001` in the portal first).
+
+`POST /gateway/events` (key `GATEWAY_API_KEY` in `X-Gateway-Key`) still accepts the same live events from an external
+gateway: the old `plugev-server`, or the charging module if it is ever run as a separate service again.
 
 Stack (ADR-002, ADR-003): Node 24, NestJS 11, TypeScript, PostgreSQL, TypeORM migrations, Argon2id, pino.
 
 ## Run locally
 
-Requirements: Node 22.12+ and PostgreSQL 13+ (PostgreSQL 18 is already installed on the dev PC).
-
-```bash
-cd plugev-api
-npm install
-cp .env.example .env
-```
-
-1. Create a database, e.g. in pgAdmin or `psql`: `CREATE DATABASE plugev;`
-2. In `.env`:
-   - set `DATABASE_URL`;
-   - set `JWT_ACCESS_SECRET` (generate one with `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"`);
-   - set `MFA_ENCRYPTION_KEY` (generate one with `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`).
-3. Create the first Super Admin. The command asks for the password, so it is not saved in shell history:
-   ```bash
-   npm run seed:super-admin -- --email you@example.com --name "Your Name"
-   ```
-4. Start the API:
-   ```bash
-   npm run start:dev
-   ```
-   - API: http://localhost:4000/api/v1
-   - Interactive docs: http://localhost:4000/api/docs
+Setup, `.env` settings, starting the API, ngrok and connecting a charger: [../HOW-TO-RUN.md](../HOW-TO-RUN.md).
 
 Migrations run automatically at startup (`DB_RUN_MIGRATIONS=true`). They can also be run by hand with `npm run migration:run` / `migration:revert`.
 
@@ -125,11 +110,7 @@ Other MFA behaviour:
 - has a health check;
 - takes its configuration from environment variables only, so the same image runs on Azure or AWS.
 
-To run the whole platform locally (API, gateway, portal, PostgreSQL, MongoDB), see `docker-compose.yml` at the repository root. Create the first Super Admin in the container with:
-
-```bash
-docker compose exec -it api node dist/cli/create-super-admin.js --email you@example.com --name "Your Name"
-```
+To run the platform with Docker, see [../HOW-TO-RUN.md](../HOW-TO-RUN.md), section E.
 
 ## Tests
 

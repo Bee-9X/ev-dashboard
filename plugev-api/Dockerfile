@@ -18,7 +18,8 @@ COPY --from=build --chown=node:node /app/package.json ./
 COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/dist ./dist
 USER node
-EXPOSE 4000
+# 4000: API; 3003: chargers (OCPP SOAP and OCPP-J)
+EXPOSE 4000 3003
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
     CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||4000)+'/api/v1/health/live').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"
 # Migrations run on startup (DB_RUN_MIGRATIONS=true). First Super Admin:

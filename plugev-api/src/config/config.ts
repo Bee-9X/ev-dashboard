@@ -27,8 +27,18 @@ const schema = z.object({
     QR_LINK_BASE: z.url().optional(),
     // Shared key the charger gateway sends with its events (X-Gateway-Key). Unset: the gateway link is off.
     GATEWAY_API_KEY: z.string().min(32, 'GATEWAY_API_KEY must be at least 32 characters').optional(),
-    // A charger counts as offline when the gateway has not reported it for this long (e.g. the gateway itself stopped).
-    CHARGER_OFFLINE_AFTER_SEC: int.min(30).max(86400).default(300),
+    // A charger counts as offline when nothing was heard from it for this long.
+    CHARGER_OFFLINE_AFTER_SEC: int.min(30).max(86400).default(120),
+    // Charging module: OCPP 1.5/1.6 SOAP and OCPP 1.6J for chargers, on its own port (the one ngrok exposes).
+    OCPP_ENABLED: bool.default(true),
+    // 0 = any free port (tests)
+    OCPP_PORT: int.min(0).max(65535).default(3003),
+    OCPP_HEARTBEAT_INTERVAL_SEC: int.min(10).max(3600).default(30),
+    // Comma separated idTags that may charge; empty = every idTag (until EV user accounts exist)
+    OCPP_ID_TAG_ALLOWLIST: z.string().default(''),
+    OCPP_MESSAGE_RETENTION_DAYS: int.min(1).max(365).default(30),
+    OCPP_COMMAND_TIMEOUT_MS: int.min(1000).max(120000).default(30000),
+    OCPP_SOAP_COMMAND_TIMEOUT_MS: int.min(1000).max(120000).default(15000),
     TRUST_PROXY: bool.default(false),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
     MAIL_TRANSPORT: z.enum(['log', 'smtp']).default('log'),
@@ -67,6 +77,15 @@ export interface AppConfig {
     qrLinkBase: string;
     gatewayApiKey: string | null;
     chargerOfflineAfterSec: number;
+    ocpp: {
+        enabled: boolean;
+        port: number;
+        heartbeatIntervalSec: number;
+        idTagAllowList: string[];
+        messageRetentionDays: number;
+        commandTimeoutMs: number;
+        soapCommandTimeoutMs: number;
+    };
     trustProxy: boolean;
     logLevel: string;
     mail: {
@@ -108,6 +127,15 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
         portalUrl: e.PORTAL_URL.replace(/\/+$/, ''),
         gatewayApiKey: e.GATEWAY_API_KEY ?? null,
         chargerOfflineAfterSec: e.CHARGER_OFFLINE_AFTER_SEC,
+        ocpp: {
+            enabled: e.OCPP_ENABLED,
+            port: e.OCPP_PORT,
+            heartbeatIntervalSec: e.OCPP_HEARTBEAT_INTERVAL_SEC,
+            idTagAllowList: e.OCPP_ID_TAG_ALLOWLIST.split(',').map(s => s.trim()).filter(Boolean),
+            messageRetentionDays: e.OCPP_MESSAGE_RETENTION_DAYS,
+            commandTimeoutMs: e.OCPP_COMMAND_TIMEOUT_MS,
+            soapCommandTimeoutMs: e.OCPP_SOAP_COMMAND_TIMEOUT_MS,
+        },
         qrLinkBase: (e.QR_LINK_BASE ?? `${e.PORTAL_URL.replace(/\/+$/, '')}/c`).replace(/\/+$/, ''),
         trustProxy: e.TRUST_PROXY,
         logLevel: e.LOG_LEVEL,
