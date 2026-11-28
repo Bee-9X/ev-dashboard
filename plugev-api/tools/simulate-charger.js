@@ -3,6 +3,10 @@
  * Minimal OCPP 1.6J charge point simulator.
  *
  *   node tools/simulate-charger.js --url ws://localhost:3003/ocpp/SIM-001 [--connectors 2] [--power 7400]
+ *       [--charge 1] [--id-tag SIM-TAG] [--meter-interval 10]
+ *
+ * --charge <connector>: after start-up, a car plugs in and charges on that connector (a charging session with meter
+ * values), as if a driver had tapped a card. Ctrl+C unplugs it first, so the session ends as completed.
  *
  * Supports: BootNotification, Heartbeat, StatusNotification, Authorize, Start/StopTransaction, MeterValues,
  * and answers RemoteStart/Stop, Reset, ChangeAvailability, UnlockConnector, Get/ChangeConfiguration,
@@ -238,6 +242,17 @@ function createSimulator({
         state,
         start: connect,
         call,
+        /** A car plugs in and a driver authorizes with idTag: starts a session with meter values. */
+        async plugIn(connectorId, idTag = 'SIM-TAG') {
+            const c = state.connectors[connectorId];
+            if (!c) throw new Error(`no connector ${connectorId}`);
+            if (c.transactionId !== null) throw new Error(`connector ${connectorId} is already charging`);
+            await startTransaction(connectorId, idTag);
+        },
+        /** The car is unplugged: ends the session on that connector, if any. */
+        unplug(connectorId) {
+            return stopTransaction(connectorId, 'EVDisconnected');
+        },
         stop() {
             stopped = true;
             clearTimeout(reconnectTimer);
@@ -267,6 +282,28 @@ if (require.main === module) {
         meterIntervalSec: Number(opt('meter-interval', 10)),
         log: (...a) => console.log(new Date().toISOString(), ...a),
     });
-    sim.start();
-    process.on('SIGINT', () => { sim.stop(); process.exit(0); });
+    const charge = Number(opt('charge', 0));
+    sim.start().then(async () => {
+        if (!charge) return;
+        try {
+            await sim.plugIn(charge, opt('id-tag', 'SIM-TAG'));
+        } catch (err) {
+            console.log(new Date().toISOString(), `Could not start charging: ${err.message}`);
+        }
+    });
+    let stopping = false;
+    process.on('SIGINT', async () => {
+        if (stopping) process.exit(0); // a second Ctrl+C quits at once
+        stopping = true;
+        const busy = Object.keys(sim.state.connectors).map(Number).filter(id => sim.state.connectors[id].transactionId !== null);
+        if (busy.length) {
+            console.log(new Date().toISOString(), 'Unplugging before quitting (Ctrl+C again to quit at once)...');
+            await Promise.race([
+                Promise.all(busy.map(id => sim.unplug(id).catch(() => {}))),
+                new Promise(r => setTimeout(r, 5000)),
+            ]);
+        }
+        sim.stop();
+        process.exit(0);
+    });
 }

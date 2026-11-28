@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { Cable, EvCharger, Network as NetworkIcon, Plus } from 'lucide-react';
+import { BatteryCharging, Cable, EvCharger, Network as NetworkIcon, Plus } from 'lucide-react';
 import { api, describeError } from '../../api/client';
-import type { Evse, Network, Page, Station } from '../../api/types';
+import type { ChargingSession, Evse, Network, Page, SessionStatus, Station } from '../../api/types';
+import { SESSION_STATUSES } from '../../api/types';
 import { useAuth } from '../../auth/AuthProvider';
 import { Pagination } from '../../components/dialogs';
 import { Alert, Button, SelectField } from '../../components/ui';
@@ -11,10 +12,12 @@ import { useScopes } from '../users/scopes';
 import { ChargerDialog } from './chargers/ChargerDialogs';
 import { ChargersTable } from './chargers/ChargersTable';
 import { NetworkDialog, StationDialog } from './dialogs';
+import { SESSION_STATUS_LABELS } from './sessions/sessionFormat';
+import { SESSIONS_REFRESH_MS, SessionsTable } from './sessions/SessionsTable';
 
 const PAGE_SIZE = 20;
 
-type Tab = 'networks' | 'stations' | 'chargers';
+type Tab = 'networks' | 'stations' | 'chargers' | 'sessions';
 
 /** Same page as the Phase 0 portal: "Charging Station Details" with a tab per level. */
 export function StationsPage() {
@@ -22,9 +25,17 @@ export function StationsPage() {
     const [params, setParams] = useSearchParams();
     const canNetworks = can('network.read');
     const canChargers = can('evse.read');
+    const canSessions = can('session.read');
     const asked = params.get('tab');
     // Station Admins have no network view; they start on their stations
-    const tab: Tab = asked === 'chargers' && canChargers ? 'chargers' : asked === 'stations' || !canNetworks ? 'stations' : 'networks';
+    const tab: Tab =
+        asked === 'chargers' && canChargers
+            ? 'chargers'
+            : asked === 'sessions' && canSessions
+              ? 'sessions'
+              : asked === 'stations' || !canNetworks
+                ? 'stations'
+                : 'networks';
 
     const select = (next: Tab) => setParams(next === 'networks' ? {} : { tab: next }, { replace: true });
 
@@ -49,9 +60,22 @@ export function StationsPage() {
                         Charger Terminals
                     </button>
                 )}
+                {canSessions && (
+                    <button type="button" role="tab" className="tab" aria-selected={tab === 'sessions'} onClick={() => select('sessions')}>
+                        Charging Sessions
+                    </button>
+                )}
             </div>
 
-            {tab === 'networks' ? <NetworksTab /> : tab === 'stations' ? <StationsTab /> : <ChargersTab />}
+            {tab === 'networks' ? (
+                <NetworksTab />
+            ) : tab === 'stations' ? (
+                <StationsTab />
+            ) : tab === 'chargers' ? (
+                <ChargersTab />
+            ) : (
+                <SessionsTab />
+            )}
         </>
     );
 }
@@ -376,6 +400,100 @@ function ChargersTab() {
                     }}
                 />
             )}
+        </section>
+    );
+}
+
+/** Every session in the user's scope, newest first, filtered by network, station and status. */
+function SessionsTab() {
+    const { can } = useAuth();
+    const scopes = useScopes();
+    const [params, setParams] = useSearchParams();
+    const [page, setPage] = usePageParam();
+    const networkId = params.get('network') ?? '';
+    const stationId = params.get('station') ?? '';
+    const asked = params.get('status');
+    const status = SESSION_STATUSES.includes(asked as SessionStatus) ? (asked as SessionStatus) : undefined;
+    const fetch = useCallback(
+        (p: number) =>
+            api.sessionsPage({ page: p, pageSize: PAGE_SIZE, networkId: networkId || undefined, stationId: stationId || undefined, status }),
+        [networkId, stationId, status],
+    );
+    const { data, error, loading, load } = usePaged<ChargingSession>(fetch, page);
+    const stations = networkId ? scopes.stations.filter((s) => s.networkId === networkId) : scopes.stations;
+
+    // sessions in progress: keep their energy and duration current
+    const charging = data?.items.some((s) => s.status === 'active') ?? false;
+    useEffect(() => {
+        if (!charging) return;
+        const timer = setInterval(() => {
+            if (document.visibilityState === 'visible') void load();
+        }, SESSIONS_REFRESH_MS);
+        return () => clearInterval(timer);
+    }, [charging, load]);
+
+    const filter = (changes: Record<string, string>) => {
+        const next = new URLSearchParams(params);
+        for (const [k, v] of Object.entries(changes)) {
+            if (v) next.set(k, v);
+            else next.delete(k);
+        }
+        next.delete('page');
+        setParams(next, { replace: true });
+    };
+
+    return (
+        <section className="widget" aria-labelledby="sessions-tab-title">
+            <h2 className="widget-title" id="sessions-tab-title">
+                <BatteryCharging size={20} aria-hidden /> Charging Sessions
+            </h2>
+
+            <div className="toolbar">
+                {can('network.read') && scopes.networks.length > 1 && (
+                    <div className="narrow">
+                        <SelectField
+                            label="Network"
+                            value={networkId}
+                            // a station of another network would hide everything
+                            onChange={(v) => filter({ network: v, station: '' })}
+                            placeholder="All networks"
+                            options={scopes.networks.map((n) => ({ value: n.id, label: n.name }))}
+                        />
+                    </div>
+                )}
+                {stations.length > 1 && (
+                    <div className="narrow">
+                        <SelectField
+                            label="Station"
+                            value={stationId}
+                            onChange={(v) => filter({ station: v })}
+                            placeholder="All stations"
+                            options={stations.map((s) => ({ value: s.id, label: s.name }))}
+                        />
+                    </div>
+                )}
+                <div className="narrow">
+                    <SelectField
+                        label="Status"
+                        value={status ?? ''}
+                        onChange={(v) => filter({ status: v })}
+                        placeholder="Any status"
+                        options={SESSION_STATUSES.map((s) => ({ value: s, label: SESSION_STATUS_LABELS[s] }))}
+                    />
+                </div>
+            </div>
+            {error && <LoadError error={error} retry={() => void load()} />}
+
+            {data ? (
+                <SessionsTable
+                    sessions={data.items}
+                    showStation
+                    empty={networkId || stationId || status ? 'No sessions match these filters.' : 'No charging sessions yet.'}
+                />
+            ) : (
+                loading && <TableLoading />
+            )}
+            {data && <Pagination page={data.page} pageSize={data.pageSize} total={data.total} loading={loading} onPage={setPage} />}
         </section>
     );
 }

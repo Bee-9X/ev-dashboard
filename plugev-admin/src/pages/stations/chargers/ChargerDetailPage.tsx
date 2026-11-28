@@ -2,13 +2,15 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { ArrowLeft, Cable, ExternalLink, Info, Pencil, Plus, Power, Printer, Radio } from 'lucide-react';
 import { api, ApiError, describeError } from '../../../api/client';
-import type { Connector, ConnectorLive, Evse, EvseLive, Network, Station } from '../../../api/types';
+import type { ActiveSession, Connector, ConnectorLive, Evse, EvseLive, Network, Station } from '../../../api/types';
 import { MAX_CONNECTORS } from '../../../api/types';
 import { useAuth } from '../../../auth/AuthProvider';
 import { ConfirmDialog } from '../../../components/dialogs';
 import { Alert, Button, QrCode } from '../../../components/ui';
 import { capitalize, formatDate, formatDateTime, statusBadge } from '../../format';
 import { connectorLabel, evseTitle, formatKw, liveBadge, liveLabel, PROTOCOL_LABELS, protocolMismatch, timeAgo } from '../equipment';
+import { formatDuration, formatEnergy, formatPower } from '../sessions/sessionFormat';
+import { SessionsSection } from '../sessions/SessionsTable';
 import { ChargerDialog, ConnectorDialog } from './ChargerDialogs';
 
 const CONSOLE_URL = import.meta.env.VITE_CONSOLE_URL as string | undefined;
@@ -187,6 +189,9 @@ export function ChargerDetailPage() {
                                             )}
                                         </p>
                                         <ConnectorStatus live={c.live} online={evse.live?.online ?? false} />
+                                        {c.activeSession && (
+                                            <ChargingNow session={c.activeSession} canOpen={can('session.read')} online={evse.live?.online ?? false} />
+                                        )}
                                         <p className="small">
                                             QR code <strong className="code-text">{c.qrCode}</strong>
                                         </p>
@@ -216,6 +221,14 @@ export function ChargerDetailPage() {
                         </div>
                         {evse.connectors.length === 0 && <div className="empty">No connectors yet.</div>}
                     </section>
+
+                    {can('session.read') && (
+                        <SessionsSection
+                            filter={{ evseId: evse.id }}
+                            showCharger={false}
+                            empty="No charging sessions on this charger yet."
+                        />
+                    )}
 
                     {dialog?.kind === 'edit' && (
                         <ChargerDialog evse={evse} stations={stations} onClose={() => setDialog(null)} onSaved={(e) => saved(e, 'Charger updated.')} />
@@ -395,5 +408,44 @@ function StatusLine({ live, online }: { live: ConnectorLive; online: boolean }) 
                 </span>
             )}
         </>
+    );
+}
+
+/** What is charging on a connector right now (FR MON 004): since when, energy so far, power, battery. */
+function ChargingNow({ session, canOpen, online }: { session: ActiveSession; canOpen: boolean; online: boolean }) {
+    const since = session.startedAt ? Math.max(0, Math.round((Date.now() - Date.parse(session.startedAt)) / 1000)) : null;
+    return (
+        <div className="connector-charging" aria-label="Charging now">
+            <strong className="small">Charging now</strong>
+            {since !== null && <span className="muted small"> · for {formatDuration(since)}</span>}
+            <div className="stats">
+                <div className="stat">
+                    <span className="stat-label">Energy</span>
+                    <span className="stat-value">{formatEnergy(session.energyWh)}</span>
+                </div>
+                <div className="stat">
+                    <span className="stat-label">Power</span>
+                    <span className="stat-value">{formatPower(session.powerW)}</span>
+                </div>
+                {session.socPercent !== null && (
+                    <div className="stat">
+                        <span className="stat-label">Battery</span>
+                        <span className="stat-value">{Math.round(session.socPercent)}%</span>
+                    </div>
+                )}
+            </div>
+            <span className="muted small" title={formatDateTime(session.readingAt)}>
+                {session.readingAt ? `Reading ${timeAgo(session.readingAt)}` : 'No meter reading yet'}
+                {!online && ' · the charger is offline'}
+            </span>
+            {canOpen && (
+                <>
+                    {' · '}
+                    <Link to={`/stations/sessions/${session.id}`} className="small">
+                        Open session
+                    </Link>
+                </>
+            )}
+        </div>
     );
 }

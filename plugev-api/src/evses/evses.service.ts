@@ -10,6 +10,7 @@ import { APP_CONFIG, AppConfig } from '../config/config';
 import {
     ConnectorEntity, ConnectorLiveStateEntity, ConnectorType, EvseEntity, EvseLiveStateEntity, NetworkEntity, StationEntity,
 } from '../database/entities';
+import { latestReadings, SessionLiveView } from '../sessions/session-live';
 import {
     ConnectorInputDto, CreateEvseDto, EvseListQueryDto, MAX_CONNECTORS, UpdateConnectorDto, UpdateEvseDto,
 } from './evses.dto';
@@ -23,6 +24,12 @@ export interface ConnectorLiveView {
     statusAt: Date;
 }
 
+/** The session charging on a connector right now, with its latest readings (FR MON 004). */
+export type ActiveSessionView = SessionLiveView & {
+    id: string;
+    startedAt: Date | null;
+};
+
 export type ConnectorView = ConnectorEntity & {
     /** Printed under the QR code and typed in when scanning fails, e.g. K7M3QX-1. */
     qrCode: string;
@@ -30,6 +37,8 @@ export type ConnectorView = ConnectorEntity & {
     qrUrl: string;
     /** Null until the charger reports a status for this connector. */
     live: ConnectorLiveView | null;
+    /** Null when nothing is charging on it. */
+    activeSession: ActiveSessionView | null;
 };
 
 /** What the gateway last reported (FR EVSE 003, FR MON 003). Null until the charger is first heard from. */
@@ -289,11 +298,25 @@ export class EvsesService {
     private async withConnectors(evses: EvseEntity[]): Promise<EvseView[]> {
         if (!evses.length) return [];
         const ids = In(evses.map(e => e.id));
-        const [connectors, liveStates, connectorStates] = await Promise.all([
+        const [connectors, liveStates, connectorStates, activeRows] = await Promise.all([
             this.db.getRepository(ConnectorEntity).find({ where: { evseId: ids }, order: { connectorNumber: 'ASC' } }),
             this.db.getRepository(EvseLiveStateEntity).find({ where: { evseId: ids } }),
             this.db.getRepository(ConnectorLiveStateEntity).find({ where: { evseId: ids } }),
+            this.db.query(
+                `SELECT DISTINCT ON (evse_id, connector_number) id, evse_id, connector_number, started_at, meter_start_wh
+                 FROM charging_sessions WHERE evse_id = ANY($1::uuid[]) AND status = 'active'
+                 ORDER BY evse_id, connector_number, started_at DESC`,
+                [evses.map(e => e.id)],
+            ) as Promise<{ id: string; evse_id: string; connector_number: number; started_at: Date | null; meter_start_wh: string | null }[]>,
         ]);
+        const readings = await latestReadings(this.db, activeRows.map(r => ({
+            id: r.id, meterStartWh: r.meter_start_wh === null ? null : Number(r.meter_start_wh),
+        })));
+        const activeOf = (evseId: string, n: number): ActiveSessionView | null => {
+            const r = activeRows.find(a => a.evse_id === evseId && a.connector_number === n);
+            if (!r) return null;
+            return { id: r.id, startedAt: r.started_at, ...readings.get(r.id)! };
+        };
         const staleBefore = Date.now() - this.config.chargerOfflineAfterSec * 1000;
         const liveOf = (s: ConnectorLiveStateEntity | undefined): ConnectorLiveView | null =>
             s ? { status: s.status, errorCode: s.errorCode, info: s.info, vendorErrorCode: s.vendorErrorCode, statusAt: s.statusAt } : null;
@@ -309,6 +332,7 @@ export class EvsesService {
                         qrCode,
                         qrUrl: `${this.config.qrLinkBase}/${qrCode}`,
                         live: liveOf(states.find(s => s.connectorNumber === c.connectorNumber)),
+                        activeSession: activeOf(e.id, c.connectorNumber),
                     });
                 }),
                 live: live ? {

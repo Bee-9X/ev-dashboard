@@ -20,6 +20,7 @@ import { NetworksModule } from './networks/networks.module';
 import { EvsesModule } from './evses/evses.module';
 import { GatewayModule } from './gateway/gateway.module';
 import { ChargingModule } from './charging/charging.module';
+import { SessionsModule } from './sessions/sessions.module';
 import { UsersModule } from './users/users.module';
 
 export const JWT_ISSUER = 'plugev-api';
@@ -79,6 +80,7 @@ export const JWT_AUDIENCE = 'plugev';
         EvsesModule,
         GatewayModule,
         ChargingModule,
+        SessionsModule,
     ],
     controllers: [HealthController],
     providers: [

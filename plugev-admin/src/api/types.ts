@@ -210,6 +210,8 @@ export interface Connector {
     qrUrl: string;
     /** Null until the charger reports a status for it. */
     live?: ConnectorLive | null;
+    /** The session charging on it right now; null when nothing is charging. */
+    activeSession?: ActiveSession | null;
 }
 
 export interface ConnectorInput {
@@ -249,4 +251,88 @@ export interface EvseInput {
     model: string;
     serialNumber: string | null;
     maxPowerKw: number | null;
+}
+
+/** What a session's latest meter readings say. Null where the charger did not report it. */
+export interface SessionLive {
+    /** Energy delivered so far (latest meter reading minus the meter start). */
+    energyWh: number | null;
+    powerW: number | null;
+    /** Battery state of charge, if the charger reports it. */
+    socPercent: number | null;
+    /** When the newest reading used was taken. */
+    readingAt: string | null;
+}
+
+export interface ActiveSession extends SessionLive {
+    id: string;
+    startedAt: string | null;
+}
+
+/**
+ * active: charging now. completed: stopped. interrupted: a new start on the connector came before the stop.
+ * orphan: a stop for a transaction the platform never started.
+ */
+export type SessionStatus = 'active' | 'completed' | 'interrupted' | 'orphan';
+export const SESSION_STATUSES: SessionStatus[] = ['active', 'completed', 'interrupted', 'orphan'];
+
+/** A charging session, as administrators see it. */
+export interface ChargingSession {
+    id: string;
+    networkId: string;
+    networkName: string;
+    stationId: string;
+    stationName: string;
+    evseId: string;
+    evseName: string | null;
+    protocolIdentity: string;
+    connectorNumber: number;
+    connectorType: ConnectorType | null;
+    /** The transaction id the charger uses. */
+    ocppTransactionId: number | null;
+    /** The RFID card or app token that started it. */
+    idTag: string | null;
+    stopIdTag: string | null;
+    startedAt: string | null;
+    stoppedAt: string | null;
+    /** Until now while charging. */
+    durationSec: number | null;
+    meterStartWh: number | null;
+    meterStopWh: number | null;
+    /** Final energy from the meter start and stop. */
+    energyWh: number | null;
+    status: SessionStatus;
+    /** As the charger gave it, e.g. EVDisconnected, Local, Remote. */
+    stopReason: string | null;
+    notes: string[];
+    createdAt: string;
+    /** Latest readings while charging. */
+    live: SessionLive | null;
+}
+
+export interface MeterReading {
+    measuredAt: string;
+    measurand: string;
+    phase: string | null;
+    unit: string | null;
+    value: string;
+    numericValue: number | null;
+    context: string | null;
+    location: string | null;
+    source: 'MeterValues' | 'StopTransaction';
+}
+
+export interface ChargingSessionDetail extends ChargingSession {
+    readings: MeterReading[];
+    /** More readings exist than were returned. */
+    readingsTruncated: boolean;
+}
+
+export interface SessionQuery {
+    page?: number;
+    pageSize?: number;
+    networkId?: string;
+    stationId?: string;
+    evseId?: string;
+    status?: SessionStatus;
 }

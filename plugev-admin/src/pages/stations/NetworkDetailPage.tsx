@@ -8,6 +8,7 @@ import { ConfirmDialog } from '../../components/dialogs';
 import { Alert, Button } from '../../components/ui';
 import { capitalize, formatDate, statusBadge } from '../format';
 import { NetworkDialog, StationDialog } from './dialogs';
+import { SessionsSection } from './sessions/SessionsTable';
 import { TableLoading } from './StationsPage';
 
 const STATUS_ACTIONS: Record<NetworkStatus, { status: NetworkStatus; label: string; danger?: boolean }[]> = {
@@ -188,6 +189,15 @@ export function NetworkDetailPage() {
                             </p>
                         )}
                     </section>
+
+                    {can('session.read') && (
+                        <SessionsSection
+                            filter={{ networkId: network.id }}
+                            showStation
+                            empty="No charging sessions in this network yet."
+                            allLink={`/stations?tab=sessions&network=${network.id}`}
+                        />
+                    )}
 
                     {dialog === 'edit' && (
                         <NetworkDialog
