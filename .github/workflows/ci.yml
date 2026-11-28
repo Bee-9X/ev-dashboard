@@ -100,7 +100,7 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: plugev-portal/package-lock.json
-      # The template's dependency tree has peer conflicts (see instructions.txt); the new portal (ADR-005) will not.
+      # The template's dependency tree has peer conflicts (see HOW-TO-RUN.md, section H); the new portal (ADR-005) will not.
       - run: npm ci --force
       - run: npx react-scripts test --watchAll=false
         env:

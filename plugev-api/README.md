@@ -41,29 +41,7 @@ Stack (ADR-002, ADR-003): Node 24, NestJS 11, TypeScript, PostgreSQL, TypeORM mi
 
 ## Run locally
 
-Requirements: Node 22.12+ and PostgreSQL 13+ (PostgreSQL 18 is already installed on the dev PC).
-
-```bash
-cd plugev-api
-npm install
-cp .env.example .env
-```
-
-1. Create a database, e.g. in pgAdmin or `psql`: `CREATE DATABASE plugev;`
-2. In `.env`:
-   - set `DATABASE_URL`;
-   - set `JWT_ACCESS_SECRET` (generate one with `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"`);
-   - set `MFA_ENCRYPTION_KEY` (generate one with `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`).
-3. Create the first Super Admin. The command asks for the password, so it is not saved in shell history:
-   ```bash
-   npm run seed:super-admin -- --email you@example.com --name "Your Name"
-   ```
-4. Start the API:
-   ```bash
-   npm run start:dev
-   ```
-   - API: http://localhost:4000/api/v1
-   - Interactive docs: http://localhost:4000/api/docs
+Setup, `.env` settings, starting the API, ngrok and connecting a charger: [../HOW-TO-RUN.md](../HOW-TO-RUN.md).
 
 Migrations run automatically at startup (`DB_RUN_MIGRATIONS=true`). They can also be run by hand with `npm run migration:run` / `migration:revert`.
 
@@ -132,11 +110,7 @@ Other MFA behaviour:
 - has a health check;
 - takes its configuration from environment variables only, so the same image runs on Azure or AWS.
 
-To run the whole platform locally (API, gateway, portal, PostgreSQL, MongoDB), see `docker-compose.yml` at the repository root. Create the first Super Admin in the container with:
-
-```bash
-docker compose exec -it api node dist/cli/create-super-admin.js --email you@example.com --name "Your Name"
-```
+To run the platform with Docker, see [../HOW-TO-RUN.md](../HOW-TO-RUN.md), section E.
 
 ## Tests
 

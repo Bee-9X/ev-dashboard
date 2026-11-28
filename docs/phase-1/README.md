@@ -35,6 +35,4 @@ Phase 1 started on 2026-11-21, alongside the remaining Phase 0 items (the real-c
 
 ## How to run
 
-- API: [plugev-api/README.md](../../plugev-api/README.md)
-- Admin portal: [plugev-admin/README.md](../../plugev-admin/README.md)
-- Everything with Docker: [instructions.txt](../../instructions.txt)
+See [HOW-TO-RUN.md](../../HOW-TO-RUN.md) (locally or with Docker).

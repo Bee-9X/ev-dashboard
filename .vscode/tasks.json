@@ -1,0 +1,86 @@
+{
+    // PLUG EV dev setup inside VS Code (see HOW-TO-RUN.md, section B).
+    // Ctrl+Shift+B, or Terminal > Run Task > "PLUG EV: start". Stop with the task "PLUG EV: stop".
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "PLUG EV: start",
+            "detail": "Checks, then the API, ngrok and the admin portal, each in its own terminal",
+            "dependsOrder": "sequence",
+            "dependsOn": ["PLUG EV: checks", "PLUG EV: run all"],
+            "group": { "kind": "build", "isDefault": true },
+            "problemMatcher": []
+        },
+        {
+            "label": "PLUG EV: checks",
+            "detail": "Node, plugev-api/.env, packages, PostgreSQL, free ports",
+            "type": "process",
+            "command": "powershell.exe",
+            "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/scripts/start-dev.ps1", "-CheckOnly"],
+            "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+            "problemMatcher": []
+        },
+        {
+            "label": "PLUG EV: run all",
+            "dependsOn": ["PLUG EV: API", "PLUG EV: ngrok", "PLUG EV: admin portal", "PLUG EV: status"],
+            "problemMatcher": []
+        },
+        {
+            "label": "PLUG EV: API",
+            "type": "shell",
+            "command": "npm run start:dev",
+            "options": { "cwd": "${workspaceFolder}/plugev-api" },
+            "isBackground": true,
+            "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+            // Never reports problems; only tells VS Code when the API is up.
+            "problemMatcher": {
+                "owner": "plugev",
+                "pattern": { "regexp": "^__plugev_never__$" },
+                "background": { "activeBegins": true, "beginsPattern": "^__plugev_never__$", "endsPattern": "PLUG EV API listening on" }
+            }
+        },
+        {
+            "label": "PLUG EV: ngrok",
+            "type": "shell",
+            "command": "ngrok http 3003 --scheme http",
+            "isBackground": true,
+            "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+            "problemMatcher": {
+                "owner": "plugev",
+                "pattern": { "regexp": "^__plugev_never__$" },
+                "background": { "activeBegins": true, "beginsPattern": "^__plugev_never__$", "endsPattern": "Forwarding" }
+            }
+        },
+        {
+            "label": "PLUG EV: admin portal",
+            "type": "shell",
+            "command": "npm run dev",
+            "options": { "cwd": "${workspaceFolder}/plugev-admin" },
+            "isBackground": true,
+            "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+            "problemMatcher": {
+                "owner": "plugev",
+                "pattern": { "regexp": "^__plugev_never__$" },
+                "background": { "activeBegins": true, "beginsPattern": "^__plugev_never__$", "endsPattern": "Local:" }
+            }
+        },
+        {
+            "label": "PLUG EV: status",
+            "detail": "Waits for the apps, opens the portal, shows the charger address",
+            "type": "process",
+            "command": "powershell.exe",
+            "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/scripts/start-dev.ps1", "-StatusOnly"],
+            "presentation": { "reveal": "always", "focus": true, "panel": "dedicated", "clear": true },
+            "problemMatcher": []
+        },
+        {
+            "label": "PLUG EV: stop",
+            "detail": "Stops the API, the admin portal and ngrok",
+            "type": "process",
+            "command": "powershell.exe",
+            "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/scripts/stop-dev.ps1"],
+            "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+            "problemMatcher": []
+        }
+    ]
+}

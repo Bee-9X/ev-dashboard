@@ -36,28 +36,12 @@ Stack: Vite 7, React 19, TypeScript, React Router 7, Vitest with Testing Library
 
 ## Run locally
 
-Needs Node 22 or later and a running `plugev-api` (see [../plugev-api/README.md](../plugev-api/README.md)).
+Needs a running `plugev-api`. Setup, first sign-in and the other apps: [../HOW-TO-RUN.md](../HOW-TO-RUN.md).
 
 ```bash
 npm install
-cp .env.example .env        # optional: defaults to the API at http://localhost:4000/api/v1
 npm run dev                 # http://localhost:3000
 ```
-
-Port 3000 is the API's default `PORTAL_URL` and `CORS_ORIGINS`, so the links in emails open this app.
-The Phase 0 portal (`plugev-portal`) also defaults to 3000. To run both, start the old one on another
-port (`set PORT=3001 && npm start` on Windows) and set `VITE_CONSOLE_URL` to show it in the menu.
-
-First sign-in:
-
-1. Create a Super Admin in `plugev-api`:
-   ```bash
-   npm run seed:super-admin -- --email you@example.com --name "Your Name"
-   ```
-2. Sign in at http://localhost:3000. The portal asks you to set up MFA: scan the QR code with
-   Google Authenticator or Microsoft Authenticator, enter the code, and save the recovery codes.
-
-Emails are logged by the API (`MAIL_TRANSPORT=log`). To follow an invitation or reset link, copy it from the API log.
 
 ## Scripts
 
